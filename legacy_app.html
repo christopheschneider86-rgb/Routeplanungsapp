@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Händler-Routenoptimierung</title>
+  <link rel="preconnect" href="https://api.fontshare.com">
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+  <style>
+    :root,[data-theme="light"]{
+      --text-xs:clamp(.75rem,.7rem + .25vw,.875rem);--text-sm:clamp(.875rem,.8rem + .35vw,1rem);
+      --text-base:clamp(1rem,.95rem + .25vw,1.125rem);--text-lg:clamp(1.125rem,1rem + .75vw,1.5rem);
+      --text-xl:clamp(1.5rem,1.2rem + 1.25vw,2.25rem);
+      --space-1:.25rem;--space-2:.5rem;--space-3:.75rem;--space-4:1rem;--space-5:1.25rem;
+      --space-6:1.5rem;--space-8:2rem;--space-10:2.5rem;--space-12:3rem;--space-16:4rem;
+      --color-bg:#f7f6f2;--color-surface:#f9f8f5;--color-surface-2:#fbfbf9;
+      --color-surface-offset:#f3f0ec;--color-surface-dynamic:#e6e4df;
+      --color-divider:#dcd9d5;--color-border:#d4d1ca;
+      --color-text:#28251d;--color-text-muted:#6d6a64;--color-text-faint:#a9a59d;
+      --color-primary:#01696f;--color-primary-hover:#0c4e54;--color-primary-highlight:#d4e8e5;
+      --color-success:#437a22;--color-warning:#964219;--color-error:#a12c7b;
+      --color-orange:#da7101;
+      --radius-sm:.375rem;--radius-md:.5rem;--radius-lg:.75rem;--radius-xl:1rem;--radius-full:9999px;
+      --shadow-sm:0 1px 2px rgba(40,37,29,.06);--shadow-md:0 6px 18px rgba(40,37,29,.09);--shadow-lg:0 16px 40px rgba(40,37,29,.12);
+      --font-body:'Satoshi',Inter,sans-serif;
+      --trans:180ms cubic-bezier(.16,1,.3,1);
+    }
+    [data-theme="dark"]{
+      --color-bg:#171614;--color-surface:#1c1b19;--color-surface-2:#201f1d;--color-surface-offset:#1d1c1a;
+      --color-surface-dynamic:#2d2c2a;--color-divider:#262523;--color-border:#393836;
+      --color-text:#cdccca;--color-text-muted:#9d9a94;--color-text-faint:#6b6862;
+      --color-primary:#4f98a3;--color-primary-hover:#227f8b;--color-primary-highlight:#253133;
+      --color-success:#6daa45;--color-warning:#bb653b;--color-error:#d163a7;--color-orange:#fdab43;
+      --shadow-sm:0 1px 3px rgba(0,0,0,.2);--shadow-md:0 6px 20px rgba(0,0,0,.3);--shadow-lg:0 16px 40px rgba(0,0,0,.45);
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html{-webkit-font-smoothing:antialiased;scroll-behavior:smooth}
+    body{min-height:100dvh;background:var(--color-bg);color:var(--color-text);font-family:var(--font-body);font-size:var(--text-sm);line-height:1.55}
+    img,svg{display:block;max-width:100%}
+    button,input,textarea,select{font:inherit;color:inherit}
+    button{cursor:pointer;border:none;background:none}
+    :focus-visible{outline:2px solid var(--color-primary);outline-offset:2px;border-radius:var(--radius-sm)}
+    a,button,input,select,textarea{transition:all var(--trans)}
+
+    /* ── Layout ── */
+    .app{display:grid;grid-template-columns:340px 1fr;min-height:100dvh}
+    .sidebar{background:var(--color-surface);border-right:1px solid var(--color-border);display:flex;flex-direction:column;gap:var(--space-5);padding:var(--space-6);overflow-y:auto;max-height:100dvh;position:sticky;top:0}
+    .main{display:flex;flex-direction:column;min-width:0;min-height:100dvh}
+
+    /* ── Brand ── */
+    .brand{display:flex;align-items:center;justify-content:space-between}
+    .brand-inner{display:flex;gap:var(--space-3);align-items:center}
+    .logo{width:38px;height:38px;border-radius:10px;background:var(--color-primary);display:grid;place-items:center;color:#fff;flex:0 0 auto}
+    .logo svg{width:20px;height:20px}
+    .brand h1{font-size:var(--text-base);font-weight:700;line-height:1.1}
+    .brand p{font-size:var(--text-xs);color:var(--color-text-muted);margin-top:1px}
+    .theme-btn{width:40px;height:40px;border-radius:var(--radius-full);background:var(--color-surface-offset);border:1px solid var(--color-border);display:grid;place-items:center;flex:0 0 auto}
+
+    /* ── Panels ── */
+    .panel{background:var(--color-surface-2);border:1px solid var(--color-border);border-radius:var(--radius-xl);overflow:hidden;box-shadow:var(--shadow-sm)}
+    .panel-hd{padding:var(--space-3) var(--space-4);border-bottom:1px solid var(--color-divider);font-size:var(--text-xs);text-transform:uppercase;letter-spacing:.07em;font-weight:700;color:var(--color-text-muted);display:flex;align-items:center;justify-content:space-between}
+    .panel-body{padding:var(--space-4);display:grid;gap:var(--space-4)}
+
+    /* ── Fields ── */
+    .field{display:grid;gap:var(--space-2)}
+    .field label{font-size:var(--text-sm);font-weight:700}
+    .field input,.field select,.field textarea{width:100%;background:var(--color-bg);border:1px solid var(--color-border);border-radius:var(--radius-md);padding:.75rem .9rem;font-size:var(--text-sm)}
+    .field textarea{min-height:140px;resize:vertical}
+    .field input:focus,.field textarea:focus,.field select:focus{border-color:var(--color-primary);box-shadow:0 0 0 3px var(--color-primary-highlight)}
+    .hint{font-size:var(--text-xs);color:var(--color-text-muted);line-height:1.5}
+    .row2{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3)}
+
+    /* ── Buttons ── */
+    .btn{min-height:42px;border-radius:var(--radius-md);padding:.7rem 1rem;font-size:var(--text-sm);font-weight:700;border:1px solid transparent;display:inline-flex;align-items:center;justify-content:center;gap:var(--space-2)}
+    .btn-primary{background:var(--color-primary);color:#fff}
+    .btn-primary:hover:not(:disabled){background:var(--color-primary-hover)}
+    .btn-secondary{background:var(--color-surface-offset);border-color:var(--color-border)}
+    .btn-secondary:hover:not(:disabled){background:var(--color-surface-dynamic)}
+    .btn-ghost{background:transparent;border-color:var(--color-border)}
+    .btn-ghost:hover:not(:disabled){background:var(--color-surface-offset)}
+    .btn:disabled{opacity:.45;cursor:not-allowed}
+    .btn-row{display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3)}
+
+    /* ── Topbar ── */
+    .topbar{padding:var(--space-6) var(--space-6) var(--space-4);border-bottom:1px solid var(--color-divider);display:flex;flex-direction:column;gap:var(--space-3)}
+    .topbar-meta{display:flex;align-items:center;gap:var(--space-3);flex-wrap:wrap}
+    .topbar h2{font-size:var(--text-xl);line-height:1.05}
+    .chip{display:inline-flex;align-items:center;gap:var(--space-1);padding:.35rem .65rem;border-radius:var(--radius-full);font-size:var(--text-xs);font-weight:700}
+    .chip-teal{background:var(--color-primary-highlight);color:var(--color-primary)}
+    .chip-orange{background:oklch(from var(--color-orange) l c h / 0.15);color:var(--color-orange)}
+
+    /* ── Stats ── */
+    .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-4);padding:var(--space-5) var(--space-6)}
+    .stat{padding:var(--space-4);background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm)}
+    .stat .lbl{font-size:var(--text-xs);text-transform:uppercase;letter-spacing:.07em;color:var(--color-text-muted);margin-bottom:var(--space-2)}
+    .stat .val{font-size:var(--text-lg);font-weight:700;font-variant-numeric:tabular-nums lining-nums;line-height:1}
+    .stat .sub{font-size:var(--text-xs);color:var(--color-text-muted);margin-top:var(--space-1)}
+
+    /* ── Content ── */
+    .content-grid{display:grid;grid-template-columns:1.3fr 0.7fr;gap:var(--space-5);padding:0 var(--space-6) var(--space-6);flex:1}
+    .map-card{display:flex;flex-direction:column;min-height:0}
+    .map-wrap{position:relative;flex:1;min-height:420px}
+    #map{width:100%;height:100%;border-radius:0 0 var(--radius-xl) var(--radius-xl)}
+    .map-actions{position:absolute;top:var(--space-3);right:var(--space-3);display:flex;flex-direction:column;gap:var(--space-2);z-index:999}
+    .map-btn{width:40px;height:40px;border-radius:var(--radius-md);background:var(--color-surface);border:1px solid var(--color-border);box-shadow:var(--shadow-sm);display:grid;place-items:center;color:var(--color-text)}
+    .map-btn:hover{background:var(--color-surface-offset)}
+    .map-btn.active{background:var(--color-primary);color:#fff;border-color:var(--color-primary)}
+    .results-card{display:flex;flex-direction:column;min-height:0}
+    .route-list{flex:1;overflow-y:auto;padding:var(--space-3);display:flex;flex-direction:column;gap:var(--space-3)}
+
+    /* ── Stop cards ── */
+    .stop{padding:var(--space-3) var(--space-4);border:1px solid var(--color-border);border-radius:var(--radius-lg);background:var(--color-surface);display:grid;gap:var(--space-2)}
+    .stop.active{border-color:var(--color-primary);background:var(--color-primary-highlight)}
+    .stop-top{display:flex;gap:var(--space-3);align-items:flex-start}
+    .stop-num{width:28px;height:28px;border-radius:50%;background:var(--color-primary);color:#fff;font-size:var(--text-xs);font-weight:700;display:grid;place-items:center;flex:0 0 auto;margin-top:2px}
+    .stop-num.start{background:var(--color-success)}
+    .stop-num.end{background:var(--color-orange)}
+    .stop h3{font-size:var(--text-sm);font-weight:700;line-height:1.2}
+    .stop-debitor{font-size:var(--text-xs);color:var(--color-text-muted)}
+    .stop-addr{font-size:var(--text-xs);color:var(--color-text-muted)}
+    .stop-meta{display:flex;flex-wrap:wrap;gap:var(--space-2)}
+    .badge{display:inline-flex;align-items:center;gap:4px;padding:.3rem .55rem;border-radius:var(--radius-full);background:var(--color-surface-offset);border:1px solid var(--color-border);font-size:var(--text-xs);font-variant-numeric:tabular-nums}
+    .badge.dist{color:var(--color-primary)}
+    .badge.time{color:var(--color-orange)}
+
+    /* ── Empty / Progress ── */
+    .empty{padding:var(--space-8);color:var(--color-text-muted);text-align:center;display:flex;flex-direction:column;align-items:center;gap:var(--space-3)}
+    .empty svg{width:40px;height:40px;color:var(--color-text-faint)}
+    .progress-bar{height:3px;background:var(--color-primary);border-radius:var(--radius-full);width:0;transition:width .4s ease}
+
+    /* ── Toast ── */
+    #toast{position:fixed;bottom:var(--space-6);right:var(--space-6);z-index:9999;display:flex;flex-direction:column;gap:var(--space-2);pointer-events:none}
+    .toast-item{background:var(--color-text);color:var(--color-bg);padding:.65rem 1.1rem;border-radius:var(--radius-lg);font-size:var(--text-sm);font-weight:500;box-shadow:var(--shadow-lg);animation:slideIn .3s ease;pointer-events:auto}
+    .toast-item.error{background:var(--color-error);color:#fff}
+    @keyframes slideIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+    /* ── Geocoding progress ── */
+    #geocoding-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:8888;display:none;place-items:center}
+    #geocoding-overlay.active{display:grid}
+    .geo-box{background:var(--color-surface);border-radius:var(--radius-xl);padding:var(--space-8) var(--space-10);text-align:center;display:flex;flex-direction:column;gap:var(--space-4);min-width:300px;box-shadow:var(--shadow-lg)}
+    .geo-box h3{font-size:var(--text-base);font-weight:700}
+    #geo-progress-text{font-size:var(--text-sm);color:var(--color-text-muted)}
+    #geo-progress-bar{height:6px;background:var(--color-border);border-radius:var(--radius-full);overflow:hidden;margin-top:var(--space-2)}
+    #geo-progress-fill{height:100%;background:var(--color-primary);border-radius:var(--radius-full);transition:width .3s ease;width:0}
+
+    @media(max-width:1100px){
+      .app{grid-template-columns:1fr}
+      .sidebar{position:static;max-height:none;border-right:none;border-bottom:1px solid var(--color-border)}
+      .content-grid{grid-template-columns:1fr}
+      .stats{grid-template-columns:repeat(2,1fr)}
+      .map-wrap{min-height:360px}
+    }
+    @media(max-width:600px){
+      .stats{grid-template-columns:1fr 1fr;padding:var(--space-4)}
+      .content-grid,.topbar{padding-inline:var(--space-4)}
+      .btn-row{grid-template-columns:1fr}
+    }
+  </style>
+</head>
+<body>
+
+<div class="app">
+  <!-- ── Sidebar ── -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-inner">
+        <div class="logo" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 12h4l3-9 4 18 3-9h4"/>
+          </svg>
+        </div>
+        <div>
+          <h1>Routenoptimierung</h1>
+          <p>Händlerbesuche · Außendienst</p>
+        </div>
+      </div>
+      <button class="theme-btn" data-theme-toggle aria-label="Farbschema wechseln">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+    </div>
+
+    <!-- ORS API Key -->
+    <section class="panel">
+      <div class="panel-hd">OpenRouteService API-Key <span style="font-size:var(--text-xs);font-weight:400;text-transform:none;color:var(--color-primary)">kostenlos</span></div>
+      <div class="panel-body">
+        <div class="field">
+          <label for="orsKey">API-Schlüssel</label>
+          <input id="orsKey" type="password" placeholder="5b3ce3597851…" autocomplete="off"/>
+          <div class="hint">Kostenlos registrieren: <a href="https://openrouteservice.org/dev/#/signup" target="_blank" rel="noopener">openrouteservice.org</a>. Ohne Key werden nur Luftlinien-Distanzen berechnet.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Start/End -->
+    <section class="panel">
+      <div class="panel-hd">Start- & Endpunkt</div>
+      <div class="panel-body">
+        <div class="field">
+          <label>Startpunkt (Adresse oder Koordinaten)</label>
+          <input id="startAddr" placeholder="z. B. Nürnberg, Hauptmarkt 1  oder  49.452, 11.077"/>
+          <div class="hint">Ohne Startpunkt beginnt die Route beim ersten Händler in der Liste.</div>
+        </div>
+        <div class="field">
+          <label>Endpunkt (Adresse oder Koordinaten)</label>
+          <input id="endAddr" placeholder="z. B. München, Marienplatz  oder  48.135, 11.582"/>
+          <div class="hint">Ohne Endpunkt endet die Route beim letzten Händler in der Besuchsreihenfolge.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Zeitplanung -->
+    <section class="panel">
+      <div class="panel-hd">Zeitplanung</div>
+      <div class="panel-body">
+        <div class="row2">
+          <div class="field">
+            <label for="tourStartTime">Tour-Startzeit</label>
+            <input id="tourStartTime" type="time" value="08:00"/>
+            <div class="hint">Wann beginnt die Tour heute?</div>
+          </div>
+          <div class="field">
+            <label for="defaultStayMin">Standard-Aufenthalt (Min.)</label>
+            <input id="defaultStayMin" type="number" min="0" step="5" value="30" placeholder="30"/>
+            <div class="hint">Gilt wenn kein eigener Wert pro Händler gesetzt ist.</div>
+          </div>
+        </div>
+        <div class="field">
+          <label for="respectVisitTime">Vereinbarte Besuchszeiten</label>
+          <select id="respectVisitTime">
+            <option value="on" selected>Einplanen &amp; Abweichung anzeigen</option>
+            <option value="off">Ignorieren (nur Reihenfolge)</option>
+          </select>
+          <div class="hint">Vereinbarte Zeiten aus CSV-Spalte „Besuchszeit" werden in der Liste angezeigt und auf Termintreue geprüft.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Daten -->
+    <section class="panel">
+      <div class="panel-hd">Händlerdaten</div>
+      <div class="panel-body">
+        <div class="field">
+          <label for="csvInput">CSV-Eingabe</label>
+          <textarea id="csvInput" placeholder="Debitorennummer;Name;Adresse&#10;10001;Händler Nord;Königstraße 1, 90402 Nürnberg&#10;10002;Händler Süd;Marienplatz 1, 80331 München"></textarea>
+          <div class="hint">Reihenfolge: <strong>Debitorennummer; Name; Adresse; Besuchszeit HH:MM (opt.); Aufenthalt Min. (opt.)</strong>. Trennzeichen ; oder Tab. Kopfzeile optional. CSV-Datei importieren.</div>
+        </div>
+        <div>
+          <input type="file" id="csvFile" accept=".csv,.txt" style="display:none">
+          <button class="btn btn-ghost" style="width:100%" onclick="document.getElementById('csvFile').click()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            CSV-Datei importieren
+          </button>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" id="optimizeBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            Route berechnen
+          </button>
+          <button class="btn btn-secondary" id="demoBtn">Beispieldaten</button>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-ghost" id="exportBtn" disabled>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            CSV exportieren
+          </button>
+          <button class="btn btn-ghost" id="clearBtn">Zurücksetzen</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-hd">Algorithmus</div>
+      <div class="panel-body">
+        <p class="hint">Nächster-Nachbar-Heuristik + 2-opt-Verbesserung. Für bis zu ~20 Stopps werden alle Kanten geprüft. Für größere Touren empfiehlt sich eine spätere Feinoptimierung.</p>
+        <p class="hint">Echte Fahrstrecken und Zeiten kommen von OpenRouteService (Straßennetz). Ohne API-Key werden Luftlinien-Distanzen verwendet.</p>
+      </div>
+    </section>
+  </aside>
+
+  <!-- ── Main ── -->
+  <main class="main">
+    <div class="topbar">
+      <div class="topbar-meta">
+        <span class="chip chip-teal" id="statusChip">● Bereit</span>
+        <span class="chip chip-orange" id="methodChip" style="display:none">Luftlinie</span>
+      </div>
+      <h2>Automatisierte Routenoptimierung für Händlerbesuche</h2>
+    </div>
+
+    <div class="stats">
+      <article class="stat">
+        <div class="lbl">Händler</div>
+        <div class="val" id="statStops">0</div>
+        <div class="sub" id="statStopsSub">Stopps geplant</div>
+      </article>
+      <article class="stat">
+        <div class="lbl">Gesamtstrecke</div>
+        <div class="val" id="statDist">— km</div>
+        <div class="sub" id="statDistSub">Fahrstrecke</div>
+      </article>
+      <article class="stat">
+        <div class="lbl">Fahrzeit</div>
+        <div class="val" id="statTime">—</div>
+        <div class="sub">Reine Fahrzeit</div>
+      </article>
+      <article class="stat">
+        <div class="lbl">Einsparung</div>
+        <div class="val" id="statSave">0 %</div>
+        <div class="sub">durch Optimierung</div>
+      </article>
+    </div>
+
+    <div class="content-grid">
+      <!-- Karte -->
+      <article class="panel map-card">
+        <div class="panel-hd">Kartenansicht</div>
+        <div class="map-wrap">
+          <div id="map" aria-label="Karte mit optimierter Route"></div>
+          <div class="map-actions">
+            <button class="map-btn" id="btnZoomRoute" title="Route zoomen" aria-label="Route zoomen">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3l7.07 7.07"/><path d="M12.9 2.1l2 2-2 2"/><path d="M14.9 4.1A7 7 0 1 1 4.1 14.9"/><path d="M21 21l-4.35-4.35"/><path d="M15 11h-4v4"/></svg>
+            </button>
+            <button class="map-btn" id="btnFullscreen" title="Vollbild" aria-label="Karte im Vollbild öffnen">⛶</button>
+          <button class="map-btn" id="btnMapStyle" title="Kartentyp" aria-label="Kartentyp wechseln">🗺️</button>
+          <button class="map-btn" id="btnMapTheme" title="Dark/Light Karte" aria-label="Karten-Design wechseln">◐</button>
+          <button class="map-btn" id="btnZoomRoute" title="Route zoomen" aria-label="Route zoomen">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8" stroke-dasharray="2 3"/></svg>
+            </button>
+          </div>
+        </div>
+      </article>
+
+      <!-- Besuchsreihenfolge -->
+      <article class="panel results-card">
+        <div class="panel-hd">Besuchsreihenfolge <span id="stopCount" style="color:var(--color-text-faint)"></span></div>
+        <div class="route-list" id="routeList">
+          <div class="empty">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 20l-5.447-2.724A1 1 0 0 1 3 16.382V5.618a1 1 0 0 1 1.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0 0 21 18.382V7.618a1 1 0 0 0-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
+            <span>Noch keine Route berechnet.<br>Daten eingeben und Route berechnen.</span>
+          </div>
+        </div>
+      </article>
+    </div>
+  </main>
+</div>
+
+<!-- Geocoding Overlay -->
+<div id="geocoding-overlay">
+  <div class="geo-box">
+    <h3>Adressen werden geocodiert…</h3>
+    <div id="geo-progress-text">0 von 0</div>
+    <div id="geo-progress-bar"><div id="geo-progress-fill"></div></div>
+    <button class="btn btn-ghost" id="cancelGeoBtn">Abbrechen</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script>
+// ────────────────────────────────────────────────────────────
+// Theme
+// ────────────────────────────────────────────────────────────
+(function(){
+  const root=document.documentElement;
+  const stored=localStorage.getItem('theme');
+  let d=stored||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');
+  root.setAttribute('data-theme',d);
+  const SUN='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>';
+  const MOON='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+  function applyTheme(theme){
+    root.setAttribute('data-theme',theme);
+    localStorage.setItem('theme',theme);
+    const btn=document.querySelector('[data-theme-toggle]');
+    if(btn) btn.innerHTML=theme==='dark'?SUN:MOON;
+  }
+  document.addEventListener('DOMContentLoaded',()=>{
+    applyTheme(d);
+    document.querySelector('[data-theme-toggle]').addEventListener('click',()=>{
+      d=d==='dark'?'light':'dark';
+      applyTheme(d);
+    });
+  });
+})();
+
+// ────────────────────────────────────────────────────────────
+// Toast
+// ────────────────────────────────────────────────────────────
+function toast(msg, isError=false){
+  const t=document.createElement('div');
+  t.className='toast-item'+(isError?' error':'');
+  t.textContent=msg;
+  document.getElementById('toast').appendChild(t);
+  setTimeout(()=>t.remove(),4000);
+}
+
+// ────────────────────────────────────────────────────────────
+// State
+// ────────────────────────────────────────────────────────────
+const S={
+  map:null, routeLine:null, markers:[], startMarker:null, endMarker:null, routeBounds:null,
+  optimized:[], rawInput:[], cancelGeo:false
+};
+
+const $ = id => document.getElementById(id);
+
+// ────────────────────────────────────────────────────────────
+// Map init
+// ────────────────────────────────────────────────────────────
+function initMap(){
+  S.map=L.map('map',{zoomControl:false}).setView([51.1657,10.4515],6);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    maxZoom:19, attribution:'© <a href="https://openstreetmap.org">OSM</a>'
+  }).addTo(S.map);
+  L.control.zoom({position:'bottomright'}).addTo(S.map);
+
+  // Zoom-Route Button
+  $('btnZoomRoute').addEventListener('click',()=>{
+    if(S.routeBounds) S.map.fitBounds(S.routeBounds,{padding:[32,32]});
+    else toast('Noch keine Route geladen.');
+  });
+
+  // Aktueller Standort
+  $('btnMyLocation').addEventListener('click',()=>{
+    if(!navigator.geolocation){ toast('Geolocation nicht verfügbar.',true); return; }
+    navigator.geolocation.getCurrentPosition(pos=>{
+      const {latitude:lat,longitude:lng}=pos.coords;
+      S.map.setView([lat,lng],13);
+      L.circleMarker([lat,lng],{radius:10,color:'var(--color-primary)',fillColor:'var(--color-primary)',fillOpacity:.5}).addTo(S.map).bindPopup('Ihr Standort').openPopup();
+      $('btnMyLocation').classList.add('active');
+      setTimeout(()=>$('btnMyLocation').classList.remove('active'),2000);
+    },()=>toast('Standort konnte nicht ermittelt werden.',true));
+  });
+}
+
+// ────────────────────────────────────────────────────────────
+// CSV Parser
+// ────────────────────────────────────────────────────────────
+function detectDelim(line){
+  let best=';', bestN=-1;
+  [';','\t',','].forEach(d=>{
+    const n=(line.match(new RegExp(d==='\t'?'\\t':'\\'+d,'g'))||[]).length;
+    if(n>bestN){best=d;bestN=n;}
+  });
+  return best;
+}
+
+function parseCSV(text){
+  const lines=text.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+  if(!lines.length) return [];
+  const delim=detectDelim(lines[0]);
+
+  // detect if first line is a header
+  const firstCells=lines[0].split(delim).map(c=>c.trim().toLowerCase());
+  const isHeader = firstCells.some(c=>['name','debitor','händler','händlername','adresse','address','nummer'].some(k=>c.includes(k)));
+  const dataLines=isHeader?lines.slice(1):lines;
+
+  return dataLines.map((line,i)=>{
+    const cells=line.split(delim).map(c=>c.replace(/^["']|["']$/g,'').trim());
+    // Columns: Debitorennummer; Name; Adresse (min 2 cols, max 3)
+    if(cells.length<2) return null;
+    const debitor = cells.length>=3 ? cells[0] : '';
+    const name    = cells.length>=3 ? cells[1] : cells[0];
+    const address = cells.length>=3 ? cells[2] : cells[1];
+    if(!address) return null;
+    const vt=cells.length>=4?cells[3].trim():''; const smRaw=cells.length>=5?parseInt(cells[4],10):NaN; return { originalLine:i+1, debitor, name:name||`Händler ${i+1}`, address, visitTime:/^\d{1,2}:\d{2}$/.test(vt)?vt:'', stayMin:!isNaN(smRaw)?smRaw:null, lat:null, lon:null };
+  }).filter(Boolean);
+}
+
+// ────────────────────────────────────────────────────────────
+// Geocoding (Nominatim, 1 req/sec)
+// ────────────────────────────────────────────────────────────
+async function geocodeAddress(address){
+  // Check if it's already coordinates
+  const coordMatch=address.match(/^\s*(-?\d+\.?\d*)\s*[,;]\s*(-?\d+\.?\d*)\s*$/);
+  if(coordMatch) return {lat:parseFloat(coordMatch[1]),lon:parseFloat(coordMatch[2])};
+
+  const url=`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address)}&format=json&limit=1&addressdetails=0&countrycodes=de,at,ch`;
+  try{
+    const res=await fetch(url,{headers:{'User-Agent':'HaendlerRoutenoptimierung/1.0 (internal-tool)','Accept-Language':'de'}});
+    if(!res.ok) return null;
+    const data=await res.json();
+    if(!data.length) return null;
+    return {lat:parseFloat(data[0].lat),lon:parseFloat(data[0].lon)};
+  }catch{ return null; }
+}
+
+async function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+async function geocodeAll(items){
+  $('geocoding-overlay').classList.add('active');
+  $('cancelGeoBtn').onclick=()=>{ S.cancelGeo=true; };
+  S.cancelGeo=false;
+  const total=items.length;
+  let done=0, failed=[];
+
+  for(const item of items){
+    if(S.cancelGeo) break;
+    if(item.lat!==null) { done++; continue; }
+    const result=await geocodeAddress(item.address);
+    if(result){ item.lat=result.lat; item.lon=result.lon; }
+    else{ failed.push(item.name||item.address); }
+    done++;
+    $('geo-progress-text').textContent=`${done} von ${total}`;
+    $('geo-progress-fill').style.width=`${(done/total)*100}%`;
+    await sleep(1100); // respect 1 req/sec limit
+  }
+
+  $('geocoding-overlay').classList.remove('active');
+  if(failed.length) toast(`${failed.length} Adresse(n) nicht gefunden: ${failed.slice(0,3).join(', ')}`,true);
+  return items.filter(i=>i.lat!==null&&i.lon!==null);
+}
+
+// ────────────────────────────────────────────────────────────
+// Haversine
+// ────────────────────────────────────────────────────────────
+function haversine(a,b){
+  const R=6371, r=d=>d*Math.PI/180;
+  const dLat=r(b.lat-a.lat), dLon=r(b.lon-a.lon);
+  const s=Math.sin(dLat/2)**2+Math.cos(r(a.lat))*Math.cos(r(b.lat))*Math.sin(dLon/2)**2;
+  return 2*R*Math.atan2(Math.sqrt(s),Math.sqrt(1-s));
+}
+
+function routeDist(route, start, end){
+  if(!route.length) return 0;
+  const all=[...(start?[start]:[]), ...route, ...(end?[end]:[])];
+  let total=0;
+  for(let i=1;i<all.length;i++) total+=haversine(all[i-1],all[i]);
+  return total;
+}
+
+// ────────────────────────────────────────────────────────────
+// Optimization (Nearest Neighbor + 2-opt)
+// ────────────────────────────────────────────────────────────
+function nearestNeighbor(points, start){
+  const rem=[...points];
+  const route=[];
+  let cur=start||rem.shift();
+  const first=start?null:cur;
+  if(first) route.push(first);
+  while(rem.length){
+    let bi=0,bd=Infinity;
+    rem.forEach((p,idx)=>{const d=haversine(cur,p);if(d<bd){bd=d;bi=idx;}});
+    const next=rem.splice(bi,1)[0]; route.push(next); cur=next;
+  }
+  return route;
+}
+
+function twoOpt(route, start, end){
+  let best=route.slice(); let improved=true;
+  while(improved){
+    improved=false;
+    for(let i=0;i<best.length-1;i++){
+      for(let k=i+1;k<best.length;k++){
+        const newR=[...best.slice(0,i),...best.slice(i,k+1).reverse(),...best.slice(k+1)];
+        if(routeDist(newR,start,end)<routeDist(best,start,end)-0.001){best=newR;improved=true;}
+      }
+    }
+  }
+  return best;
+}
+
+// ────────────────────────────────────────────────────────────
+// ORS Routing (real road distances)
+// ────────────────────────────────────────────────────────────
+async function fetchORSRoute(waypoints, apiKey){
+  // ORS directions with waypoints
+  const coords=waypoints.map(p=>[p.lon,p.lat]);
+  const url=`https://api.openrouteservice.org/v2/directions/driving-car/geojson`;
+  try{
+    const res=await fetch(url,{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':apiKey},
+      body:JSON.stringify({coordinates:coords})
+    });
+    if(!res.ok){ const err=await res.text(); throw new Error(err); }
+    const data=await res.json();
+    const seg=data.features[0].properties.segments;
+    // Per-leg distance and duration
+    const legs=seg.map(s=>({dist:s.distance/1000, dur:s.duration}));
+    const totalDist=data.features[0].properties.summary.distance/1000;
+    const totalDur=data.features[0].properties.summary.duration;
+    const geometry=data.features[0].geometry.coordinates.map(([lon,lat])=>[lat,lon]);
+    return {legs, totalDist, totalDur, geometry};
+  }catch(e){
+    throw new Error('ORS-Fehler: '+e.message);
+  }
+}
+
+// ────────────────────────────────────────────────────────────
+// Format helpers
+// ────────────────────────────────────────────────────────────
+function fmtDur(secs){
+  if(!secs&&secs!==0) return '—';
+  const h=Math.floor(secs/3600);
+  const m=Math.floor((secs%3600)/60);
+  if(h>0) return `${h} h ${m} min`;
+  return `${m} min`;
+}
+function esc(s){ return String(s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function timeToMin(t){ const m=String(t||'').match(/^(\d{1,2}):(\d{2})$/); return m?+m[1]*60+ +m[2]:null; }
+function minToTime(n){ if(n==null||!isFinite(n)) return '—'; const d=((n%1440)+1440)%1440; return String(Math.floor(d/60)).padStart(2,'0')+':'+String(d%60).padStart(2,'0'); }
+
+// ────────────────────────────────────────────────────────────
+// Clear map layers
+// ────────────────────────────────────────────────────────────
+function clearMap(){
+  S.markers.forEach(m=>S.map.removeLayer(m));
+  S.markers=[];
+  if(S.routeLine){ S.map.removeLayer(S.routeLine); S.routeLine=null; }
+  if(S.startMarker){ S.map.removeLayer(S.startMarker); S.startMarker=null; }
+  if(S.endMarker){ S.map.removeLayer(S.endMarker); S.endMarker=null; }
+  S.routeBounds=null;
+}
+
+const iconSvg=(color,label)=>{
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="42" viewBox="0 0 32 42"><path d="M16 0C7.164 0 0 7.163 0 16c0 8.836 14 26 16 26s16-17.164 16-26C32 7.163 24.836 0 16 0z" fill="${color}"/><circle cx="16" cy="16" r="8" fill="white" fill-opacity="0.9"/><text x="16" y="20" text-anchor="middle" font-family="Satoshi,sans-serif" font-size="10" font-weight="700" fill="${color}">${label}</text></svg>`;
+  return L.icon({iconUrl:'data:image/svg+xml;base64,'+btoa(svg),iconSize:[32,42],iconAnchor:[16,42],popupAnchor:[0,-40]});
+};
+
+// ────────────────────────────────────────────────────────────
+// Draw map
+// ────────────────────────────────────────────────────────────
+function drawMap(allPoints, geometry, start, end){
+  clearMap();
+  const coordsForBounds=[];
+
+  // Route line
+  if(geometry&&geometry.length>1){
+    S.routeLine=L.polyline(geometry,{
+      color: getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim()||'#01696f',
+      weight:5, opacity:.9
+    }).addTo(S.map);
+    geometry.forEach(c=>coordsForBounds.push(c));
+  } else {
+    const pts=[...(start?[start]:[]),...allPoints,...(end?[end]:[])];
+    if(pts.length>1){
+      const coords=pts.map(p=>[p.lat,p.lon]);
+      S.routeLine=L.polyline(coords,{color:'#01696f',weight:5,opacity:.9,dashArray:'8 4'}).addTo(S.map);
+      coords.forEach(c=>coordsForBounds.push(c));
+    }
+  }
+
+  // Stop markers
+  allPoints.forEach((stop,i)=>{
+    const icon=iconSvg('#01696f',String(i+1));
+    const m=L.marker([stop.lat,stop.lon],{icon}).addTo(S.map);
+    m.bindPopup(`<strong>${i+1}. ${esc(stop.name)}</strong><br><small>${esc(stop.debitor?'Deb. '+stop.debitor+' · ':'')}</small>${esc(stop.address)}`);
+    S.markers.push(m);
+    coordsForBounds.push([stop.lat,stop.lon]);
+  });
+
+  if(start){
+    S.startMarker=L.marker([start.lat,start.lon],{icon:iconSvg('#437a22','S')}).addTo(S.map).bindPopup('<strong>Start</strong>');
+    coordsForBounds.push([start.lat,start.lon]);
+  }
+  if(end){
+    S.endMarker=L.marker([end.lat,end.lon],{icon:iconSvg('#da7101','E')}).addTo(S.map).bindPopup('<strong>Ende</strong>');
+    coordsForBounds.push([end.lat,end.lon]);
+  }
+
+  if(coordsForBounds.length){
+    S.routeBounds=L.latLngBounds(coordsForBounds);
+    S.map.fitBounds(S.routeBounds,{padding:[36,36]});
+  }
+}
+
+// ────────────────────────────────────────────────────────────
+// Render stop list
+// ────────────────────────────────────────────────────────────
+function renderList(route, legs, start, end, isORS){
+  const list=$('routeList');
+  if(!route.length){ list.innerHTML='<div class="empty"><span>Keine Händler geocodiert.</span></div>'; return; }
+  $('stopCount').textContent=`(${route.length})`;
+
+  let html='';
+
+  // Start card
+  if(start){
+    html+=`<div class="stop" style="border-color:var(--color-success)">
+      <div class="stop-top">
+        <div class="stop-num start">S</div>
+        <div><div class="stop-debitor">Startpunkt</div><h3>${esc(start.address||'Startpunkt')}</h3></div>
+      </div>
+    </div>`;
+  }
+
+  route.forEach((stop,i)=>{
+    const legOffset = start ? i : i;
+    const leg = legs && legs[legOffset] ? legs[legOffset] : null;
+    const distStr = leg ? `${leg.dist.toFixed(1)} km` : (i===0&&!start ? '—' : `${haversine(i===0?start||route[0]:route[i-1], stop).toFixed(1)} km *`);
+    const durStr = leg ? fmtDur(leg.dur) : '';
+
+    html+=`<article class="stop">
+      <div class="stop-top">
+        <div class="stop-num">${i+1}</div>
+        <div style="min-width:0">
+          ${stop.debitor?`<div class="stop-debitor">Deb. ${esc(stop.debitor)}</div>`:''}
+          <h3>${esc(stop.name)}</h3>
+          <div class="stop-addr">${esc(stop.address)}</div>
+        </div>
+      </div>
+      <div class="stop-meta">
+        <span class="badge dist">⇢ ${distStr}</span>
+        ${durStr?`<span class="badge time">⏱ ${durStr}</span>`:''}
+        ${stop._arrTime?`<span class="badge" style="color:var(--color-text-muted)">🕐 ${stop._arrTime}</span>`:''}
+        ${stop.visitTime&&window._respectVisitTime?`<span class="badge" style="color:var(--color-primary)">📅 ${stop.visitTime}</span>`:''}
+        ${stop._lateMin>0?`<span class="badge" style="color:var(--color-error)">⚠ ${stop._lateMin} Min. zu spät</span>`:''}
+        ${stop._waitMin>0?`<span class="badge" style="color:var(--color-warning)">⏳ ${stop._waitMin} Min. Wartezeit</span>`:''}
+        ${stop._depTime?`<span class="badge" style="color:var(--color-text-muted)">🚪 ${stop._depTime}</span>`:''}
+        ${stop.lat?`<span class="badge">${stop.lat.toFixed(4)}, ${stop.lon.toFixed(4)}</span>`:''}
+      </div>
+    </article>`;
+  });
+
+  // End card
+  if(end){
+    const lastLeg=legs&&legs[legs.length-1]?legs[legs.length-1]:null;
+    const endDist=lastLeg?`${lastLeg.dist.toFixed(1)} km`:'—';
+    const endDur=lastLeg?fmtDur(lastLeg.dur):'';
+    html+=`<div class="stop" style="border-color:var(--color-orange)">
+      <div class="stop-top">
+        <div class="stop-num end">E</div>
+        <div>
+          <div class="stop-debitor">Endpunkt</div>
+          <h3>${esc(end.address||'Endpunkt')}</h3>
+          ${lastLeg?`<div class="stop-meta" style="margin-top:var(--space-2)"><span class="badge dist">⇢ ${endDist}</span><span class="badge time">⏱ ${endDur}</span></div>`:''}
+        </div>
+      </div>
+    </div>`;
+  }
+
+  if(!isORS) html+=`<p class="hint" style="padding:0 var(--space-2)">* Luftlinien-Distanz. Für echte Fahrstrecken ORS API-Key eingeben.</p>`;
+  list.innerHTML=html;
+}
+
+// ────────────────────────────────────────────────────────────
+// Update stats
+// ────────────────────────────────────────────────────────────
+function updateStats(route, totalDist, totalDur, initDist){
+  $('statStops').textContent=route.length;
+  $('statDist').textContent=`${totalDist.toFixed(1)} km`;
+  $('statTime').textContent=fmtDur(totalDur);
+  const pct=initDist>0?((initDist-totalDist)/initDist*100):0;
+  $('statSave').textContent=pct>0?`${pct.toFixed(1)} %`:'0 %';
+}
+
+function setStatus(txt){ $('statusChip').textContent='● '+txt; }
+
+// ────────────────────────────────────────────────────────────
+// Main optimize flow
+// ────────────────────────────────────────────────────────────
+async function runOptimize(){
+  const csvText=$('csvInput').value.trim();
+  if(!csvText){ toast('Bitte Händlerdaten eingeben.',true); return; }
+
+  const raw=parseCSV(csvText);
+  if(!raw.length){ toast('Keine gültigen Zeilen erkannt.',true); return; }
+
+  setStatus('Geocodierung läuft…');
+  $('optimizeBtn').disabled=true;
+
+  // Geocode points
+  const points=await geocodeAll(raw);
+  if(!points.length){ toast('Keine Adressen geocodiert.',true); $('optimizeBtn').disabled=false; setStatus('Fehler'); return; }
+
+  // Geocode start
+  let start=null;
+  const startVal=$('startAddr').value.trim();
+  if(startVal){
+    setStatus('Startpunkt geocodieren…');
+    const r=await geocodeAddress(startVal);
+    if(r) start={...r, address:startVal};
+    else toast('Startpunkt nicht gefunden. Route beginnt beim ersten Händler.',false);
+  }
+
+  // Geocode end
+  let end=null;
+  const endVal=$('endAddr').value.trim();
+  if(endVal){
+    setStatus('Endpunkt geocodieren…');
+    const r=await geocodeAddress(endVal);
+    if(r) end={...r, address:endVal};
+    else toast('Endpunkt nicht gefunden. Route endet beim letzten Händler.',false);
+  }
+
+  setStatus('Optimierung läuft…');
+
+  // Optimize
+  const initRoute=nearestNeighbor(points, start);
+  const optimized=twoOpt(initRoute, start, end);
+  const initDist=routeDist(initRoute, start, end);
+  const optDist=routeDist(optimized, start, end);
+
+  S.optimized=optimized;
+  S.rawInput=points;
+
+  // Try ORS routing
+  const apiKey=$('orsKey').value.trim();
+  let legs=null, totalDist=optDist, totalDur=null, geometry=null, isORS=false;
+
+  if(apiKey){
+    setStatus('Fahrstrecken abrufen…');
+    const waypoints=[...(start?[start]:[]),...optimized,...(end?[end]:[])];
+    if(waypoints.length>=2){
+      try{
+        const orsResult=await fetchORSRoute(waypoints, apiKey);
+        legs=orsResult.legs;
+        totalDist=orsResult.totalDist;
+        totalDur=orsResult.totalDur;
+        geometry=orsResult.geometry;
+        isORS=true;
+        $('methodChip').textContent='Straßennetz (ORS)';
+        $('methodChip').style.display='inline-flex';
+      }catch(e){
+        toast('ORS-Fehler: '+e.message+'. Luftlinie wird genutzt.',true);
+        $('methodChip').textContent='Luftlinie';
+        $('methodChip').style.display='inline-flex';
+      }
+    }
+  } else {
+    $('methodChip').textContent='Luftlinie';
+    $('methodChip').style.display='inline-flex';
+  }
+
+  // Render
+  renderList(optimized, legs, start, end, isORS);
+  updateStats(optimized, totalDist, totalDur, initDist);
+  drawMap(optimized, geometry, start, end);
+
+  // ── Zeitplanung ─────────────────────────────────────────────
+  const doTime=$('respectVisitTime').value==='on';
+  window._respectVisitTime=doTime;
+  const startMin=timeToMin($('tourStartTime').value)??480;
+  const defStay=parseInt($('defaultStayMin').value,10)||30;
+
+  // Fahrzeiten pro Leg in Minuten (ORS oder Haversine-Schätzung @ 60 km/h)
+  const legMins=legs
+    ? legs.map(l=>Math.round(l.dur/60))
+    : (() => {
+        const pts=[...(start?[start]:[]),...optimized,...(end?[end]:[])];
+        return pts.slice(1).map((_,i)=>Math.round(haversine(pts[i],pts[i+1])/60*60));
+      })();
+
+  let cursor=startMin;
+  // Startpunkt selbst bekommt Abfahrtszeit
+  const startDepTime=minToTime(cursor);
+
+  optimized.forEach((stop,i)=>{
+    const travelIdx=start?i:i;
+    cursor+=legMins[travelIdx]??0;
+    const arrMin=cursor;
+    const vtMin=doTime?timeToMin(stop.visitTime):null;
+    const waitMin=(vtMin!=null&&vtMin>arrMin)?vtMin-arrMin:0;
+    const lateMin=(vtMin!=null&&arrMin>vtMin)?arrMin-vtMin:0;
+    const stay=stop.stayMin??defStay;
+    const depMin=arrMin+waitMin+stay;
+    cursor=depMin;
+    // inject times back for display
+    stop._arrTime=minToTime(arrMin);
+    stop._depTime=minToTime(depMin);
+    stop._waitMin=waitMin;
+    stop._lateMin=lateMin;
+  });
+
+  // Re-render mit Zeitdaten
+  renderList(optimized, legs, start, end, isORS);
+
+  // Tourende in Stats-Sub anzeigen
+  const tourEndEl=document.querySelector('#statTime').closest('.stat').querySelector('.sub');
+  if(tourEndEl) tourEndEl.textContent='Tourende ca. '+minToTime(cursor);
+
+  $('exportBtn').disabled=false;
+  $('optimizeBtn').disabled=false;
+  setStatus(`${optimized.length} Stopps optimiert`);
+}
+
+// ────────────────────────────────────────────────────────────
+// CSV Export
+// ────────────────────────────────────────────────────────────
+function exportCSV(){
+  if(!S.optimized.length){ toast('Keine Route vorhanden.',true); return; }
+  const rows=[['Reihenfolge','Debitorennummer','Name','Adresse','Breitengrad','Längengrad','Besuchszeit','Aufenthalt_Min','Ankunft','Abfahrt']];
+  S.optimized.forEach((s,i)=>{
+    rows.push([i+1, s.debitor||'', s.name, s.address, s.lat!==null?s.lat:'', s.lon!==null?s.lon:'', s.visitTime||'', s.stayMin!==null?s.stayMin:'', s._arrTime||'', s._depTime||'']);
+  });
+  const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(';')).join('\r\n');
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download='optimierte-haendlerroute.csv'; a.click();
+  URL.revokeObjectURL(url);
+  toast('CSV wurde heruntergeladen.');
+}
+
+// ────────────────────────────────────────────────────────────
+// CSV File Import
+// ────────────────────────────────────────────────────────────
+$('csvFile').addEventListener('change',e=>{
+  const file=e.target.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=ev=>{ $('csvInput').value=ev.target.result; toast('CSV importiert: '+file.name); };
+  reader.readAsText(file,'UTF-8');
+  e.target.value='';
+});
+
+// ────────────────────────────────────────────────────────────
+// Demo Data
+// ────────────────────────────────────────────────────────────
+function loadDemo(){
+  $('startAddr').value='Nürnberg, Hauptmarkt 18';
+  $('endAddr').value='Nürnberg, Hauptmarkt 18';
+  $('csvInput').value=`Debitorennummer;Name;Adresse;Besuchszeit;AufenthaltMin
+10001;Autohaus Nord GmbH;Königstraße 1, 90402 Nürnberg;09:00;25
+10002;Kfz-Center Würzburg;Domstraße 10, 97070 Würzburg;10:30;30
+10003;Motoren Händler München;Marienplatz 1, 80331 München;13:00;45
+10004;Autozentrum Augsburg;Rathausplatz 1, 86150 Augsburg;;30
+10005;Regensburg Fahrzeuge;Neupfarrplatz 1, 93047 Regensburg;15:00;20
+10006;Ingolstadt Dealer;Rathausplatz 2, 85049 Ingolstadt;;25
+10007;Erlangen Motors;Hugenottenplatz 1, 91054 Erlangen;11:45;30`;
+  toast('Beispieldaten geladen.');
+}
+
+// ────────────────────────────────────────────────────────────
+// Clear
+// ────────────────────────────────────────────────────────────
+function clearAll(){
+  $('csvInput').value=''; $('startAddr').value=''; $('endAddr').value='';
+  S.optimized=[]; S.rawInput=[];
+  $('routeList').innerHTML='<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 20l-5.447-2.724A1 1 0 0 1 3 16.382V5.618a1 1 0 0 1 1.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0 0 21 18.382V7.618a1 1 0 0 0-.553-.894L15 4m0 13V4m0 0L9 7"/></svg><span>Noch keine Route berechnet.</span></div>';
+  $('statStops').textContent='0'; $('statDist').textContent='— km'; $('statTime').textContent='—'; $('statSave').textContent='0 %';
+  $('stopCount').textContent=''; $('methodChip').style.display='none';
+  $('exportBtn').disabled=true;
+  clearMap(); S.map.setView([51.1657,10.4515],6);
+  setStatus('Zurückgesetzt');
+}
+
+// ────────────────────────────────────────────────────────────
+// Event listeners
+// ────────────────────────────────────────────────────────────
+$('optimizeBtn').addEventListener('click', runOptimize);
+$('demoBtn').addEventListener('click', loadDemo);
+$('clearBtn').addEventListener('click', clearAll);
+$('exportBtn').addEventListener('click', exportCSV);
+
+// ────────────────────────────────────────────────────────────
+// Init
+// ────────────────────────────────────────────────────────────
+initMap();
+</script>
+</body>
+</html>

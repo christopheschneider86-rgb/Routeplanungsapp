@@ -1,0 +1,126 @@
+.results-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 500px;
+  max-height: calc(100vh - 150px);
+  overflow: hidden;
+}
+
+.results-container.empty-state {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 1rem;
+  color: var(--text-muted);
+  padding: 3rem;
+}
+
+.route-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.stop-card {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.stop-card:hover {
+  border-color: var(--accent-primary);
+  transform: translateX(4px);
+}
+
+.start-card {
+  border-color: var(--success);
+  background: rgba(64, 192, 87, 0.05);
+}
+
+.end-card {
+  border-color: var(--warning);
+  background: rgba(250, 176, 5, 0.05);
+}
+
+.stop-indicator {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  color: white;
+  font-size: 0.8rem;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.start-card .stop-indicator { background: var(--success); }
+.end-card .stop-indicator { background: var(--warning); }
+
+.stop-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.stop-meta-top {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.stop-content h4 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stop-address {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stop-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.info-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0.2rem 0.5rem;
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: var(--bg-tertiary);
+}
+
+.info-badge.dist { color: var(--accent-primary); }
+.info-badge.time { color: var(--warning); }
+.mt-4 { margin-top: 1rem; }
+.mt-2 { margin-top: 0.5rem; }
+.text-center { text-align: center; }
+.px-4 { padding-left: 1rem; padding-right: 1rem; }
