@@ -104,13 +104,18 @@ export default function RouteResults({ routeData }) {
             <div className="stop-content">
               <div className="stop-meta-top">Endpunkt</div>
               <h4>{end.address}</h4>
-              {legs && legs.length > 0 && (
-                <div className="stop-badges mt-2">
+              <div className="stop-badges mt-2">
+                {legs && legs.length > 0 && (
                   <span className="info-badge dist">
                     <Navigation size={12}/> {legs[legs.length-1].dist.toFixed(1)} km
                   </span>
-                </div>
-              )}
+                )}
+                {end._arrTime && (
+                  <span className="info-badge" style={{color: 'var(--text-muted)'}}>
+                    <Clock size={12}/> An: {end._arrTime}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         )}

@@ -8,6 +8,8 @@ export default function Sidebar({
   endAddr, setEndAddr,
   startTime, setStartTime,
   defaultStayMin, setDefaultStayMin,
+  latePenalty, setLatePenalty,
+  waitPenalty, setWaitPenalty,
   onOptimize, isOptimizing, routeData, exportToCsv
 }) {
   const handleFileUpload = (e) => {

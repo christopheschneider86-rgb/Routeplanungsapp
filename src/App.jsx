@@ -18,6 +18,8 @@ function App() {
   const [endAddr, setEndAddr] = useState('');
   const [startTime, setStartTime] = useState('08:00');
   const [defaultStayMin, setDefaultStayMin] = useState(30);
+  const [latePenalty, setLatePenalty] = useState(50);
+  const [waitPenalty, setWaitPenalty] = useState(1);
   
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [geoProgress, setGeoProgress] = useState({ done: 0, total: 0 });
@@ -79,9 +81,9 @@ function App() {
         if (r) end = { ...r, address: endAddr, isEnd: true };
       }
 
-      // 3. Optimize (Nearest Neighbor + 2-opt)
-      const initRoute = nearestNeighbor(points, start);
-      const optimized = twoOpt(initRoute, start, end);
+      // 3. Optimize (Nearest Neighbor + 2-opt) with Time Windows
+      const initRoute = nearestNeighbor(points, start, startTime, defaultStayMin, latePenalty, waitPenalty);
+      const optimized = twoOpt(initRoute, start, end, startTime, defaultStayMin, latePenalty, waitPenalty);
       const initDist = routeDist(initRoute, start, end);
       
       let finalData = {
@@ -111,6 +113,33 @@ function App() {
 
       // 5. Calculate Times
       finalData.optimized = calculateTimes(finalData.optimized, finalData.legs, startTime, defaultStayMin, finalData.start, finalData.isORS);
+      
+      // Calculate End arrival time
+      if (finalData.end && finalData.optimized.length > 0) {
+        const lastStop = finalData.optimized[finalData.optimized.length - 1];
+        let endTimeMin = 0;
+        
+        // Parse last departure time
+        const m = String(lastStop._depTime || '').match(/^(\d{1,2}):(\d{2})$/);
+        if (m) endTimeMin = +m[1] * 60 + +m[2];
+        
+        // Add travel time to end
+        const lastLegOffset = finalData.start ? finalData.optimized.length : finalData.optimized.length - 1;
+        const lastLeg = finalData.legs && finalData.legs[lastLegOffset] ? finalData.legs[lastLegOffset] : null;
+        
+        if (lastLeg) {
+          endTimeMin += Math.round(lastLeg.dur / 60);
+        } else if (!finalData.isORS) {
+          const distToEnd = Math.round(routeDist([lastStop], null, finalData.end));
+          endTimeMin += distToEnd;
+        }
+        
+        // Format to HH:MM
+        if (endTimeMin > 0) {
+          const d = ((endTimeMin % 1440) + 1440) % 1440;
+          finalData.end._arrTime = String(Math.floor(d / 60)).padStart(2, '0') + ':' + String(d % 60).padStart(2, '0');
+        }
+      }
 
       setRouteData(finalData);
       
@@ -135,6 +164,8 @@ function App() {
         endAddr={endAddr} setEndAddr={setEndAddr}
         startTime={startTime} setStartTime={setStartTime}
         defaultStayMin={defaultStayMin} setDefaultStayMin={setDefaultStayMin}
+        latePenalty={latePenalty} setLatePenalty={setLatePenalty}
+        waitPenalty={waitPenalty} setWaitPenalty={setWaitPenalty}
         onOptimize={handleOptimize}
         isOptimizing={isOptimizing}
         routeData={routeData}

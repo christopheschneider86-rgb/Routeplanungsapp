@@ -1,3 +1,5 @@
+import { timeToMin } from './format';
+
 export function haversine(a, b) {
   const R = 6371;
   const r = d => d * Math.PI / 180;
@@ -14,7 +16,48 @@ export function routeDist(route, start, end) {
   return total;
 }
 
-export function nearestNeighbor(points, start) {
+export function routeCost(route, start, end, startTimeStr, defaultStayMin, latePenalty, waitPenalty) {
+  if (!route.length) return 0;
+  const all = [...(start ? [start] : []), ...route, ...(end ? [end] : [])];
+  
+  let cost = 0;
+  let currentTime = timeToMin(startTimeStr) || 480;
+  const defStay = parseInt(defaultStayMin, 10) || 30;
+
+  for (let i = 1; i < all.length; i++) {
+    const prev = all[i - 1];
+    const curr = all[i];
+    
+    const dist = haversine(prev, curr);
+    cost += dist; // Distance cost
+    
+    // Time estimation: assume 60 km/h -> 1 min per km
+    currentTime += Math.round(dist);
+    
+    if (curr.visitTime) {
+      const vTime = timeToMin(curr.visitTime);
+      if (vTime !== null) {
+        if (currentTime < vTime) {
+          // Waiting: minor penalty
+          cost += (vTime - currentTime) * (waitPenalty !== undefined ? waitPenalty : 1.0);
+          currentTime = vTime; // Wait until appointment
+        } else if (currentTime > vTime) {
+          // Late: heavy penalty
+          cost += (currentTime - vTime) * (latePenalty !== undefined ? latePenalty : 50.0);
+        }
+      }
+    }
+    
+    // Add stay time (skip for end point)
+    if (i < all.length - 1 || !end) {
+      const stay = curr.stayMin != null ? curr.stayMin : defStay;
+      currentTime += stay;
+    }
+  }
+  return cost;
+}
+
+export function nearestNeighbor(points, start, startTimeStr, defaultStayMin, latePenalty, waitPenalty) {
   const rem = [...points];
   const route = [];
   let cur = start || rem.shift();
@@ -22,10 +65,11 @@ export function nearestNeighbor(points, start) {
   if (first) route.push(first);
   
   while (rem.length) {
-    let bi = 0, bd = Infinity;
+    let bi = 0, minCost = Infinity;
     rem.forEach((p, idx) => {
-      const d = haversine(cur, p);
-      if (d < bd) { bd = d; bi = idx; }
+      const tempRoute = [...route, p];
+      const cost = routeCost(tempRoute, start, null, startTimeStr, defaultStayMin, latePenalty, waitPenalty);
+      if (cost < minCost) { minCost = cost; bi = idx; }
     });
     const next = rem.splice(bi, 1)[0]; 
     route.push(next); 
@@ -34,16 +78,20 @@ export function nearestNeighbor(points, start) {
   return route;
 }
 
-export function twoOpt(route, start, end) {
+export function twoOpt(route, start, end, startTimeStr, defaultStayMin, latePenalty, waitPenalty) {
   let best = route.slice(); 
   let improved = true;
+  let currentCost = routeCost(best, start, end, startTimeStr, defaultStayMin, latePenalty, waitPenalty);
+  
   while (improved) {
     improved = false;
     for (let i = 0; i < best.length - 1; i++) {
       for (let k = i + 1; k < best.length; k++) {
         const newR = [...best.slice(0, i), ...best.slice(i, k + 1).reverse(), ...best.slice(k + 1)];
-        if (routeDist(newR, start, end) < routeDist(best, start, end) - 0.001) { 
+        const newCost = routeCost(newR, start, end, startTimeStr, defaultStayMin, latePenalty, waitPenalty);
+        if (newCost < currentCost - 0.001) { 
           best = newR; 
+          currentCost = newCost;
           improved = true; 
         }
       }
