@@ -55,11 +55,22 @@ export default function Sidebar({
             </div>
             <div>
               <label>Endpunkt</label>
-              <input 
-                placeholder="z.B. München, Marienplatz" 
-                value={endAddr}
-                onChange={e => setEndAddr(e.target.value)}
-              />
+              <div className="flex gap-2">
+                <input 
+                  placeholder="z.B. München, Marienplatz" 
+                  value={endAddr}
+                  onChange={e => setEndAddr(e.target.value)}
+                />
+                <button 
+                  className="btn-secondary" 
+                  style={{ padding: '0 0.5rem' }}
+                  onClick={() => setEndAddr(startAddr)}
+                  title="Als Rundreise setzen (Endpunkt = Startpunkt)"
+                  disabled={!startAddr}
+                >
+                  <Clock size={16} style={{transform: 'rotate(180deg)'}}/>
+                </button>
+              </div>
             </div>
           </div>
         </section>
@@ -90,10 +101,10 @@ export default function Sidebar({
 
         <section className="glass-panel p-4 mb-4">
           <h3 className="section-title"><Upload size={16} /> Händlerdaten (CSV)</h3>
-          <p className="text-xs text-muted mb-2">Format: Debitor; Name; Adresse; [Zeit]; [Dauer]</p>
+          <p className="text-xs text-muted mb-2">Format: Debitor; Name; Adresse; [Zeit HH:MM]; [Dauer Min]</p>
           <textarea 
-            rows="5"
-            placeholder="1001; Test GmbH; Musterstraße 1, 12345 Berlin"
+            rows="6"
+            placeholder="1001; Test GmbH; Musterstraße 1, 12345 Berlin; 10:30; 45&#10;1002; Demo AG; Hauptmarkt 1, Nürnberg; ; 60"
             value={csvData}
             onChange={e => setCsvData(e.target.value)}
           />

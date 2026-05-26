@@ -36,6 +36,43 @@
   background: #e5e5e5;
 }
 
+.fullscreen-mode {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 9999 !important;
+  border-radius: 0 !important;
+  max-width: none !important;
+  height: 100vh !important;
+}
+
+.map-controls-overlay {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  z-index: 500;
+}
+
+.map-overlay-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-md);
+  display: grid;
+  place-items: center;
+  color: var(--text-primary);
+  padding: 0;
+}
+
+.map-overlay-btn:hover {
+  background: var(--bg-tertiary);
+  color: var(--accent-primary);
+}
+
 /* Fix leaflet controls z-index in dark mode/glass panels */
 .leaflet-top, .leaflet-bottom {
   z-index: 400;
