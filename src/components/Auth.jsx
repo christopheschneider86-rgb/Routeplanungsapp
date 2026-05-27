@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { supabase } from '../utils/supabase';
-import { Key, AlertCircle } from 'lucide-react';
+import { Key, AlertCircle, X } from 'lucide-react';
 
-export default function Auth() {
+export default function Auth({ onClose }) {
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -13,14 +13,12 @@ export default function Auth() {
   
   if (!supabase) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-100">
-        <div className="glass-panel p-8 max-w-md text-center">
-          <Key size={48} className="mx-auto mb-4 text-warning" />
-          <h2 className="mb-2">Supabase nicht verbunden</h2>
-          <p className="text-muted">
-            Um die Cloud-Funktionen (Login, Speichern) zu nutzen, erstellen Sie eine Datei 
-            <code>.env.local</code> und tragen Sie Ihre Supabase-Keys ein.
-          </p>
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+        <div className="glass-panel p-8 w-full max-w-md relative text-center">
+          <button onClick={onClose} className="absolute top-4 right-4 text-muted hover:text-white"><X size={20}/></button>
+          <Key size={48} className="mx-auto mb-4 text-error" />
+          <h2 className="text-2xl font-bold mb-2">Setup fehlt</h2>
+          <p className="text-muted">Die Supabase Keys wurden nicht in der .env.local konfiguriert.</p>
         </div>
       </div>
     );
@@ -43,7 +41,7 @@ export default function Auth() {
         setSuccessMsg('Registrierung erfolgreich! Bitte prüfen Sie Ihre E-Mails, um den Account zu bestätigen.');
       } else if (view === 'reset') {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: window.location.origin + '/login',
+          redirectTo: window.location.origin,
         });
         if (error) throw error;
         setSuccessMsg('Passwort-Reset-Link wurde an Ihre E-Mail gesendet.');
@@ -68,8 +66,19 @@ export default function Auth() {
   };
 
   return (
-    <div className="flex items-center justify-center h-screen" style={{ background: 'var(--bg-secondary)' }}>
-      <div className="glass-panel p-8 w-full max-w-md">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
+      <div className="bg-[var(--bg-primary)] border border-gray-800 shadow-2xl rounded-xl p-8 w-full max-w-md relative overflow-hidden">
+        
+        {/* Decorative gradient blob */}
+        <div className="absolute -top-20 -right-20 w-40 h-40 bg-accent/20 rounded-full blur-3xl pointer-events-none"></div>
+
+        <button 
+          onClick={onClose} 
+          className="absolute top-4 right-4 p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-full transition-colors z-10"
+        >
+          <X size={20} />
+        </button>
+
         <h2 className="text-2xl font-bold mb-6 text-center">{getTitle()}</h2>
         
         {errorMsg && (
@@ -111,25 +120,26 @@ export default function Auth() {
           )}
 
           {view === 'register' && (
-            <div className="flex items-center gap-2 mt-2">
+            <div className="flex items-start gap-3 mt-2 p-3 rounded-lg bg-black/20 border border-gray-700">
               <input 
                 type="checkbox" 
                 id="terms" 
                 checked={acceptedTerms}
                 onChange={(e) => setAcceptedTerms(e.target.checked)}
+                className="mt-1 shrink-0"
               />
-              <label htmlFor="terms" className="text-sm">
-                Ich akzeptiere die Nutzungsbedingungen (Terms and Conditions).
+              <label htmlFor="terms" className="text-xs text-gray-300 leading-tight">
+                Ich akzeptiere die Nutzungsbedingungen. Mir ist bewusst, dass meine Routendaten in der Cloud verarbeitet und gespeichert werden.
               </label>
             </div>
           )}
 
-          <button type="submit" className="btn-primary w-full py-2 mt-2" disabled={loading}>
+          <button type="submit" className="btn-primary w-full py-2.5 mt-2 font-medium" disabled={loading}>
             {loading ? 'Lädt...' : getTitle()}
           </button>
         </form>
         
-        <div className="mt-6 flex flex-col gap-2 text-center text-sm">
+        <div className="mt-8 flex flex-col gap-3 text-center text-sm">
           {view === 'login' ? (
             <>
               <button className="text-accent hover:underline" onClick={() => setView('register')}>

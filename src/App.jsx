@@ -14,7 +14,7 @@ import Auth from './components/Auth';
 import Admin from './components/Admin';
 import './App.css';
 
-function MainApp({ userRole }) {
+function MainApp({ userRole, session, onShowAuth }) {
   const [theme, setTheme] = useState(localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
   const [csvData, setCsvData] = useState('');
   const [apiKey, setApiKey] = useState('');
@@ -172,15 +172,17 @@ function MainApp({ userRole }) {
     if (!supabase) return alert('Supabase nicht konfiguriert.');
     if (!routeData.optimized.length) return alert('Keine Route zum Speichern.');
     
-    const { data: session } = await supabase.auth.getSession();
-    if (!session?.session?.user) return alert('Bitte erst einloggen.');
+    if (!session?.user) {
+      onShowAuth();
+      return;
+    }
 
     const name = prompt('Name für diese Route:');
     if (!name) return;
 
     try {
       const { error } = await supabase.from('routes').insert([{
-        user_id: session.session.user.id,
+        user_id: session.user.id,
         name,
         route_data: routeData
       }]);
@@ -229,9 +231,15 @@ function MainApp({ userRole }) {
                   <UserIcon size={16} />
                 </Link>
               )}
-              <button className="btn-secondary text-xs p-1 text-error" onClick={handleLogout} title="Ausloggen">
-                <LogOut size={16} />
-              </button>
+              {session ? (
+                <button className="btn-secondary text-xs p-1 text-error" onClick={handleLogout} title="Ausloggen">
+                  <LogOut size={16} />
+                </button>
+              ) : (
+                <button className="btn-primary text-xs px-3 py-1 ml-2" onClick={onShowAuth}>
+                  Einloggen
+                </button>
+              )}
             </div>
             <button className="theme-toggle" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
               {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
@@ -264,6 +272,7 @@ export default function App() {
   const [session, setSession] = useState(null);
   const [userRole, setUserRole] = useState('user');
   const [loading, setLoading] = useState(true);
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   useEffect(() => {
     if (supabase) {
@@ -278,6 +287,8 @@ export default function App() {
 
       const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
         setSession(session);
+        if (session) setShowAuthModal(false); // Close modal on successful login
+        
         if (session?.user) {
           const { data } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
           if (data) setUserRole(data.role);
@@ -318,10 +329,16 @@ export default function App() {
   };
 
   return (
-    <Routes>
-      <Route path="/" element={requireAuth(<MainApp userRole={userRole} />)} />
-      <Route path="/login" element={session ? <Navigate to="/" /> : <Auth />} />
-      <Route path="/admin" element={requireAdmin(<Admin userRole={userRole} />)} />
-    </Routes>
+    <>
+      <Routes>
+        <Route path="/" element={<MainApp userRole={userRole} session={session} onShowAuth={() => setShowAuthModal(true)} />} />
+        <Route path="/login" element={session ? <Navigate to="/" /> : <Auth onClose={() => setShowAuthModal(false)} />} />
+        <Route path="/admin" element={requireAdmin(<Admin userRole={userRole} />)} />
+      </Routes>
+      
+      {showAuthModal && !session && (
+        <Auth onClose={() => setShowAuthModal(false)} />
+      )}
+    </>
   );
 }
