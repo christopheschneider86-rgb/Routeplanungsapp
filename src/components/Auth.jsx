@@ -66,15 +66,22 @@ export default function Auth({ onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in duration-200">
-      <div className="bg-[var(--bg-primary)] border border-gray-800 shadow-2xl rounded-xl p-8 w-full max-w-md relative overflow-hidden">
+    <>
+      {/* Overlay */}
+      <div 
+        className="fixed inset-0 z-[90] bg-black/60 backdrop-blur-sm transition-opacity" 
+        onClick={onClose}
+      ></div>
+      
+      {/* Drawer */}
+      <div className="fixed inset-y-0 right-0 z-[100] w-full max-w-md bg-[var(--bg-secondary)] border-l border-[var(--border-color)] shadow-2xl p-8 overflow-y-auto animate-slide-in-right flex flex-col">
         
         {/* Decorative gradient blob */}
-        <div className="absolute -top-20 -right-20 w-40 h-40 bg-accent/20 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="absolute -top-20 -right-20 w-40 h-40 bg-[var(--accent-primary)] opacity-20 rounded-full blur-3xl pointer-events-none"></div>
 
         <button 
           onClick={onClose} 
-          className="absolute top-4 right-4 p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-full transition-colors z-10"
+          className="absolute top-4 right-4 p-2 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--border-light)] rounded-full transition-colors z-10"
         >
           <X size={20} />
         </button>
@@ -96,39 +103,40 @@ export default function Auth({ onClose }) {
 
         <form onSubmit={handleAuth} className="flex flex-col gap-4">
           <div>
-            <label className="block mb-1 text-sm">E-Mail</label>
+            <label className="block mb-1 text-sm font-medium">E-Mail</label>
             <input 
               type="email" 
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full p-2 rounded border border-gray-300 bg-white text-black"
+              placeholder="ihre@email.de"
             />
           </div>
           
           {view !== 'reset' && (
             <div>
-              <label className="block mb-1 text-sm">Passwort</label>
+              <label className="block mb-1 text-sm font-medium">Passwort</label>
               <input 
                 type="password" 
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full p-2 rounded border border-gray-300 bg-white text-black"
+                placeholder="••••••••"
               />
             </div>
           )}
 
           {view === 'register' && (
-            <div className="flex items-start gap-3 mt-2 p-3 rounded-lg bg-black/20 border border-gray-700">
+            <div className="flex items-start gap-3 mt-2 p-4 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-color)]">
               <input 
                 type="checkbox" 
                 id="terms" 
                 checked={acceptedTerms}
                 onChange={(e) => setAcceptedTerms(e.target.checked)}
-                className="mt-1 shrink-0"
+                className="mt-1 shrink-0 w-4 h-4 cursor-pointer"
+                style={{ width: 'auto' }}
               />
-              <label htmlFor="terms" className="text-xs text-gray-300 leading-tight">
+              <label htmlFor="terms" className="text-xs text-[var(--text-secondary)] leading-relaxed cursor-pointer">
                 Ich akzeptiere die Nutzungsbedingungen. Mir ist bewusst, dass meine Routendaten in der Cloud verarbeitet und gespeichert werden.
               </label>
             </div>
@@ -142,20 +150,32 @@ export default function Auth({ onClose }) {
         <div className="mt-8 flex flex-col gap-3 text-center text-sm">
           {view === 'login' ? (
             <>
-              <button className="text-accent hover:underline" onClick={() => setView('register')}>
+              <button 
+                type="button"
+                className="text-[var(--accent-primary)] hover:underline font-medium" 
+                onClick={() => setView('register')}
+              >
                 Noch keinen Account? Registrieren
               </button>
-              <button className="text-accent hover:underline" onClick={() => setView('reset')}>
+              <button 
+                type="button"
+                className="text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:underline" 
+                onClick={() => setView('reset')}
+              >
                 Passwort vergessen?
               </button>
             </>
           ) : (
-            <button className="text-accent hover:underline" onClick={() => setView('login')}>
+            <button 
+              type="button"
+              className="text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:underline" 
+              onClick={() => setView('login')}
+            >
               Zurück zum Login
             </button>
           )}
         </div>
       </div>
-    </div>
+    </>
   );
 }
