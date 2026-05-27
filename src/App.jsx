@@ -7,16 +7,21 @@ import { geocodeAll, geocodeAddress } from './utils/geocoding';
 import { nearestNeighbor, twoOpt, routeDist, fetchORSRoute } from './utils/routing';
 import { parseCSV } from './utils/csv';
 import { calculateTimes, exportRouteToCsv } from './utils/time';
-import { Moon, Sun } from 'lucide-react';
+import { Moon, Sun, Save, User as UserIcon, LogOut } from 'lucide-react';
+import { Routes, Route, Link, useNavigate, Navigate, useLocation } from 'react-router-dom';
+import { supabase } from './utils/supabase';
+import Auth from './components/Auth';
+import Admin from './components/Admin';
 import './App.css';
 
-function App() {
+function MainApp({ userRole }) {
   const [theme, setTheme] = useState(localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
   const [csvData, setCsvData] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [startAddr, setStartAddr] = useState('');
   const [endAddr, setEndAddr] = useState('');
   const [startTime, setStartTime] = useState('08:00');
+  const [endTime, setEndTime] = useState('17:00');
   const [defaultStayMin, setDefaultStayMin] = useState(30);
   const [latePenalty, setLatePenalty] = useState(50);
   const [waitPenalty, setWaitPenalty] = useState(1);
@@ -36,6 +41,14 @@ function App() {
     initDist: 0,
     isORS: false
   });
+  const location = useLocation();
+
+  useEffect(() => {
+    if (location.state?.loadedRoute) {
+      setRouteData(location.state.loadedRoute);
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -112,7 +125,7 @@ function App() {
       }
 
       // 5. Calculate Times
-      finalData.optimized = calculateTimes(finalData.optimized, finalData.legs, startTime, defaultStayMin, finalData.start, finalData.isORS);
+      finalData.optimized = calculateTimes(finalData.optimized, finalData.legs, startTime, endTime, defaultStayMin, finalData.start, finalData.isORS);
       
       // Calculate End arrival time
       if (finalData.end && finalData.optimized.length > 0) {
@@ -155,6 +168,36 @@ function App() {
     }
   };
 
+  const handleSaveRoute = async () => {
+    if (!supabase) return alert('Supabase nicht konfiguriert.');
+    if (!routeData.optimized.length) return alert('Keine Route zum Speichern.');
+    
+    const { data: session } = await supabase.auth.getSession();
+    if (!session?.session?.user) return alert('Bitte erst einloggen.');
+
+    const name = prompt('Name für diese Route:');
+    if (!name) return;
+
+    try {
+      const { error } = await supabase.from('routes').insert([{
+        user_id: session.session.user.id,
+        name,
+        route_data: routeData
+      }]);
+      if (error) throw error;
+      alert('Route erfolgreich gespeichert!');
+    } catch (err) {
+      alert('Fehler beim Speichern: ' + err.message);
+    }
+  };
+
+  const handleLogout = async () => {
+    if (supabase) {
+      await supabase.auth.signOut();
+      window.location.href = '/login';
+    }
+  };
+
   return (
     <div className="app-container">
       <Sidebar 
@@ -163,6 +206,7 @@ function App() {
         startAddr={startAddr} setStartAddr={setStartAddr}
         endAddr={endAddr} setEndAddr={setEndAddr}
         startTime={startTime} setStartTime={setStartTime}
+        endTime={endTime} setEndTime={setEndTime}
         defaultStayMin={defaultStayMin} setDefaultStayMin={setDefaultStayMin}
         latePenalty={latePenalty} setLatePenalty={setLatePenalty}
         waitPenalty={waitPenalty} setWaitPenalty={setWaitPenalty}
@@ -174,8 +218,21 @@ function App() {
       
       <main className="main-content">
         <header className="topbar">
-          <div className="brand">
-            <h1>Routenoptimierung</h1>
+          <div className="brand flex items-center gap-4">
+            <h1>Händler-Routenoptimierung</h1>
+            <div className="flex gap-2">
+              <button className="btn-secondary text-xs p-1" onClick={handleSaveRoute} title="Route speichern">
+                <Save size={16} />
+              </button>
+              {(userRole === 'admin' || userRole === 'superadmin') && (
+                <Link to="/admin" className="btn-secondary text-xs p-1" title="Admin Dashboard">
+                  <UserIcon size={16} />
+                </Link>
+              )}
+              <button className="btn-secondary text-xs p-1 text-error" onClick={handleLogout} title="Ausloggen">
+                <LogOut size={16} />
+              </button>
+            </div>
             <button className="theme-toggle" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
               {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
             </button>
@@ -203,4 +260,68 @@ function App() {
   );
 }
 
-export default App;
+export default function App() {
+  const [session, setSession] = useState(null);
+  const [userRole, setUserRole] = useState('user');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (supabase) {
+      supabase.auth.getSession().then(async ({ data: { session } }) => {
+        setSession(session);
+        if (session?.user) {
+          const { data } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
+          if (data) setUserRole(data.role);
+        }
+        setLoading(false);
+      });
+
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+        setSession(session);
+        if (session?.user) {
+          const { data } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
+          if (data) setUserRole(data.role);
+        } else {
+          setUserRole('user');
+        }
+      });
+
+      return () => subscription.unsubscribe();
+    } else {
+      setLoading(false);
+    }
+  }, []);
+
+  if (loading) {
+    return <div className="flex items-center justify-center h-screen">Lade...</div>;
+  }
+
+  // If supabase is not configured, we allow access to MainApp but warn them in Auth
+  const requireAuth = (Component) => {
+    if (!supabase) return Component;
+    return session ? Component : <Navigate to="/login" />;
+  };
+
+  const requireAdmin = (Component) => {
+    if (!supabase) return Component;
+    if (!session) return <Navigate to="/login" />;
+    if (userRole !== 'admin' && userRole !== 'superadmin') {
+      return (
+        <div className="flex flex-col items-center justify-center h-screen gap-4">
+          <h2>Zugriff verweigert</h2>
+          <p>Sie benötigen Admin-Rechte für diesen Bereich.</p>
+          <Link to="/" className="btn-primary">Zurück zur App</Link>
+        </div>
+      );
+    }
+    return Component;
+  };
+
+  return (
+    <Routes>
+      <Route path="/" element={requireAuth(<MainApp userRole={userRole} />)} />
+      <Route path="/login" element={session ? <Navigate to="/" /> : <Auth />} />
+      <Route path="/admin" element={requireAdmin(<Admin userRole={userRole} />)} />
+    </Routes>
+  );
+}

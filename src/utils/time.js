@@ -1,7 +1,10 @@
 import { timeToMin, minToTime } from './format';
+import { routeDist } from './routing';
 
-export function calculateTimes(route, legs, startTimeStr, defaultStayMin, startPoint, isORS) {
+export function calculateTimes(route, legs, startTimeStr, endTimeStr, defaultStayMin, startPoint, isORS) {
   let currentTime = timeToMin(startTimeStr) || 480; // Default 08:00
+  let endTime = timeToMin(endTimeStr) || 1020; // Default 17:00
+  let currentDay = 1;
   
   return route.map((stop, i) => {
     // Determine leg index depending on whether we have a start point
@@ -40,6 +43,16 @@ export function calculateTimes(route, legs, startTimeStr, defaultStayMin, startP
     const stay = stop.stayMin != null ? stop.stayMin : parseInt(defaultStayMin, 10) || 30;
     currentTime += stay;
     
+    // Check if End of Day reached
+    stop._isEndOfDay = false;
+    if (currentTime >= endTime) {
+      stop._isEndOfDay = true;
+      // Reset for next day
+      currentDay++;
+      currentTime = timeToMin(startTimeStr) || 480;
+    }
+    stop._day = currentDay;
+    
     // Departure Time
     stop._depTime = minToTime(currentTime);
     
@@ -48,20 +61,42 @@ export function calculateTimes(route, legs, startTimeStr, defaultStayMin, startP
 }
 
 export function exportRouteToCsv(routeData) {
-  const { optimized } = routeData;
+  const { optimized, start, end, legs, isORS } = routeData;
   if (!optimized || !optimized.length) return;
   
   let csvContent = 'data:text/csv;charset=utf-8,';
-  csvContent += 'Debitor;Name;Adresse;Ankunft;Verspaetung_Min;Abfahrt;Lat;Lon\n';
+  csvContent += 'Debitor;Name;Adresse;Termin;Ankunft;Abfahrt;Wartezeit_Min;Verspaetung_Min;Distanz_zum_naechsten_km;Fahrzeit_zum_naechsten_Min;Lat;Lon\n';
   
-  optimized.forEach(stop => {
+  optimized.forEach((stop, i) => {
+    // Finde die Distanz/Dauer zum nächsten Stopp
+    const legOffset = start ? i + 1 : i; // Der leg zum nächsten Stop
+    let nextDist = '';
+    let nextDur = '';
+    
+    if (legs && legs[legOffset]) {
+      nextDist = legs[legOffset].dist.toFixed(2);
+      nextDur = Math.round(legs[legOffset].dur / 60);
+    } else if (!isORS) {
+      if (i < optimized.length - 1) {
+         nextDist = routeDist([stop], null, optimized[i+1]).toFixed(2);
+         nextDur = Math.round(routeDist([stop], null, optimized[i+1]));
+      } else if (end) {
+         nextDist = routeDist([stop], null, end).toFixed(2);
+         nextDur = Math.round(routeDist([stop], null, end));
+      }
+    }
+    
     const row = [
       stop.debitor || '',
       stop.name || '',
       stop.address || '',
+      stop.visitTime || '',
       stop._arrTime || '',
-      stop._lateMin || '0',
       stop._depTime || '',
+      stop._waitMin || '0',
+      stop._lateMin || '0',
+      nextDist,
+      nextDur,
       stop.lat || '',
       stop.lon || ''
     ];

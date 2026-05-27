@@ -7,6 +7,7 @@ export default function Sidebar({
   startAddr, setStartAddr,
   endAddr, setEndAddr,
   startTime, setStartTime,
+  endTime, setEndTime,
   defaultStayMin, setDefaultStayMin,
   latePenalty, setLatePenalty,
   waitPenalty, setWaitPenalty,
@@ -89,6 +90,14 @@ export default function Sidebar({
               />
             </div>
             <div>
+              <label>Feierabend (Tour-Ende)</label>
+              <input 
+                type="time" 
+                value={endTime}
+                onChange={e => setEndTime(e.target.value)}
+              />
+            </div>
+            <div>
               <label>Standard-Aufenthalt (Min.)</label>
               <input 
                 type="number"
@@ -96,6 +105,31 @@ export default function Sidebar({
                 step="5"
                 value={defaultStayMin}
                 onChange={e => setDefaultStayMin(e.target.value)}
+              />
+            </div>
+          </div>
+        </section>
+
+        <section className="glass-panel p-4 mb-4">
+          <h3 className="section-title"><Settings size={16} /> Algorithmus-Strafen</h3>
+          <p className="text-xs text-muted mb-3">Wie stark sollen Zeitabweichungen bestraft werden? (1 Punkt = 1 km Umweg)</p>
+          <div className="flex flex-col gap-3">
+            <div>
+              <label>Strafe pro Min. Verspätung</label>
+              <input 
+                type="number"
+                min="0"
+                value={latePenalty}
+                onChange={e => setLatePenalty(e.target.value)}
+              />
+            </div>
+            <div>
+              <label>Strafe pro Min. Wartezeit</label>
+              <input 
+                type="number"
+                min="0"
+                value={waitPenalty}
+                onChange={e => setWaitPenalty(e.target.value)}
               />
             </div>
           </div>

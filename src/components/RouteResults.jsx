@@ -1,10 +1,18 @@
-import { MapPin, Navigation, Clock, User } from 'lucide-react';
+import { MapPin, Navigation, Clock, User, Copy, Check, Moon, Calendar } from 'lucide-react';
+import { useState, Fragment } from 'react';
 import { fmtDur } from '../utils/format';
 import { haversine } from '../utils/routing';
 import './RouteResults.css';
 
 export default function RouteResults({ routeData }) {
   const { optimized, start, end, legs, isORS } = routeData;
+  const [copiedId, setCopiedId] = useState(null);
+
+  const handleCopy = (text, id) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
 
   if (!optimized.length) {
     return (
@@ -48,13 +56,23 @@ export default function RouteResults({ routeData }) {
 
           const durStr = leg ? fmtDur(leg.dur) : '';
 
-          return (
-            <div key={stop.id || i} className="stop-card">
+          const cardContent = (
+            <div className="stop-card">
               <div className="stop-indicator">{i + 1}</div>
               <div className="stop-content">
                 {stop.debitor && <div className="stop-meta-top"><User size={12}/> Deb. {stop.debitor}</div>}
                 <h4>{stop.name}</h4>
-                <div className="stop-address">{stop.address}</div>
+                <div className="stop-address flex items-center gap-2">
+                  <span>{stop.address}</span>
+                  <button 
+                    className="icon-btn-small" 
+                    onClick={() => handleCopy(stop.address, stop.id || i)}
+                    title="Adresse kopieren"
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', opacity: 0.6, padding: '2px' }}
+                  >
+                    {copiedId === (stop.id || i) ? <Check size={14} color="var(--success)"/> : <Copy size={14} />}
+                  </button>
+                </div>
                 
                 <div className="stop-badges">
                   {distStr !== '—' && (
@@ -96,6 +114,23 @@ export default function RouteResults({ routeData }) {
               </div>
             </div>
           );
+
+          if (stop._isEndOfDay) {
+            return (
+              <Fragment key={stop.id || i}>
+                {cardContent}
+                <div className="end-of-day-divider glass-panel" style={{ margin: '1rem 0', padding: '1rem', textAlign: 'center', border: '1px solid var(--warning)', background: 'rgba(250, 176, 5, 0.05)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', color: 'var(--warning)', fontWeight: 'bold' }}>
+                    <Moon size={18} />
+                    Feierabend erreicht (Tag {stop._day})
+                  </div>
+                  <p className="text-xs text-muted mt-2">Weitere Optionen (z.B. Hotel suchen) können hier ergänzt werden.</p>
+                </div>
+              </Fragment>
+            );
+          }
+
+          return <Fragment key={stop.id || i}>{cardContent}</Fragment>;
         })}
 
         {end && (
