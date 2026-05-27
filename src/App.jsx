@@ -175,7 +175,7 @@ function App() {
       <main className="main-content">
         <header className="topbar">
           <div className="brand">
-            <h1>Händler-Routenoptimierung</h1>
+            <h1>Routenoptimierung</h1>
             <button className="theme-toggle" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
               {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
             </button>
