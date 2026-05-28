@@ -43,3 +43,41 @@ CREATE POLICY "Superadmins can update all profiles." ON public.profiles FOR UPDA
     SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'superadmin'
   )
 );
+
+-- 6. Routes Tabelle erstellen (falls nicht vorhanden)
+CREATE TABLE IF NOT EXISTS public.routes (
+  id uuid default gen_random_uuid() primary key,
+  user_id uuid references auth.users not null,
+  name text not null,
+  route_data jsonb not null,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- 7. Lese- und Schreib-Rechte für die Routes Tabelle (RLS)
+ALTER TABLE public.routes ENABLE ROW LEVEL SECURITY;
+
+-- User können ihre eigenen Routen sehen
+CREATE POLICY "Users can view own routes." ON public.routes FOR SELECT USING (auth.uid() = user_id);
+
+-- Admins/Superadmins können alle Routen sehen
+CREATE POLICY "Admins can view all routes." ON public.routes FOR SELECT USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin', 'superadmin')
+  )
+);
+
+-- User können eigene Routen erstellen
+CREATE POLICY "Users can insert own routes." ON public.routes FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- User können eigene Routen aktualisieren
+CREATE POLICY "Users can update own routes." ON public.routes FOR UPDATE USING (auth.uid() = user_id);
+
+-- User können eigene Routen löschen
+CREATE POLICY "Users can delete own routes." ON public.routes FOR DELETE USING (auth.uid() = user_id);
+
+-- Admins/Superadmins können alle Routen löschen
+CREATE POLICY "Admins can delete any route." ON public.routes FOR DELETE USING (
+  EXISTS (
+    SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('admin', 'superadmin')
+  )
+);
