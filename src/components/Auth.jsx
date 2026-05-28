@@ -36,7 +36,13 @@ export default function Auth({ onClose }) {
         if (error) throw error;
       } else if (view === 'register') {
         if (!acceptedTerms) throw new Error("Bitte akzeptieren Sie die Nutzungsbedingungen.");
-        const { error } = await supabase.auth.signUp({ email, password });
+        const { error } = await supabase.auth.signUp({ 
+          email, 
+          password,
+          options: {
+            emailRedirectTo: window.location.origin
+          }
+        });
         if (error) throw error;
         setSuccessMsg('Registrierung erfolgreich! Bitte prüfen Sie Ihre E-Mails, um den Account zu bestätigen.');
       } else if (view === 'reset') {
