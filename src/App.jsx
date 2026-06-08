@@ -18,14 +18,23 @@ import './App.css';
 function MainApp({ userRole, session, onShowAuth }) {
   const [theme, setTheme] = useState(localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
   const [csvData, setCsvData] = useState('');
-  const [apiKey, setApiKey] = useState('');
-  const [startAddr, setStartAddr] = useState('');
-  const [endAddr, setEndAddr] = useState('');
-  const [startTime, setStartTime] = useState('08:00');
-  const [endTime, setEndTime] = useState('17:00');
-  const [defaultStayMin, setDefaultStayMin] = useState(30);
-  const [latePenalty, setLatePenalty] = useState(50);
-  const [waitPenalty, setWaitPenalty] = useState(1);
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem('apiKey') || '');
+  const [startAddr, setStartAddr] = useState(() => localStorage.getItem('startAddr') || '');
+  const [endAddr, setEndAddr] = useState(() => localStorage.getItem('endAddr') || '');
+  const [startTime, setStartTime] = useState(() => localStorage.getItem('startTime') || '08:00');
+  const [endTime, setEndTime] = useState(() => localStorage.getItem('endTime') || '17:00');
+  const [defaultStayMin, setDefaultStayMin] = useState(() => parseInt(localStorage.getItem('defaultStayMin')) || 30);
+  const [latePenalty, setLatePenalty] = useState(() => parseInt(localStorage.getItem('latePenalty')) || 50);
+  const [waitPenalty, setWaitPenalty] = useState(() => parseInt(localStorage.getItem('waitPenalty')) || 1);
+
+  useEffect(() => { localStorage.setItem('apiKey', apiKey); }, [apiKey]);
+  useEffect(() => { localStorage.setItem('startAddr', startAddr); }, [startAddr]);
+  useEffect(() => { localStorage.setItem('endAddr', endAddr); }, [endAddr]);
+  useEffect(() => { localStorage.setItem('startTime', startTime); }, [startTime]);
+  useEffect(() => { localStorage.setItem('endTime', endTime); }, [endTime]);
+  useEffect(() => { localStorage.setItem('defaultStayMin', defaultStayMin); }, [defaultStayMin]);
+  useEffect(() => { localStorage.setItem('latePenalty', latePenalty); }, [latePenalty]);
+  useEffect(() => { localStorage.setItem('waitPenalty', waitPenalty); }, [waitPenalty]);
   
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [geoProgress, setGeoProgress] = useState({ done: 0, total: 0 });
