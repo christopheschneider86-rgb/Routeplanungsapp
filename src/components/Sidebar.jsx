@@ -29,7 +29,7 @@ export default function Sidebar({
         </div>
         <div>
           <h2>Planungsapp</h2>
-          <p>Außendienst Optimierung</p>
+          <p>By ZaboChris</p>
         </div>
       </div>
 
@@ -43,6 +43,7 @@ export default function Sidebar({
             value={apiKey}
             onChange={e => setApiKey(e.target.value)}
           />
+          <a href="https://openrouteservice.org/dev/#/signup" target="_blank" rel="noreferrer" className="text-xs text-accent mt-2 inline-block">API-Key hier kostenlos erhalten</a>
         </section>
 
         <section className="glass-panel p-4 mb-4">

@@ -1,17 +1,53 @@
-import { MapPin, Navigation, Clock, User, Copy, Check, Moon, Calendar } from 'lucide-react';
+import { MapPin, Navigation, Clock, User, Copy, Check, Moon, Calendar, Trash2, GripVertical, Play } from 'lucide-react';
 import { useState, Fragment } from 'react';
 import { fmtDur } from '../utils/format';
 import { haversine } from '../utils/routing';
 import './RouteResults.css';
 
-export default function RouteResults({ routeData }) {
+export default function RouteResults({ routeData, onManualUpdate, onOptimize }) {
   const { optimized, start, end, legs, isORS } = routeData;
   const [copiedId, setCopiedId] = useState(null);
+  const [draggedIndex, setDraggedIndex] = useState(null);
 
   const handleCopy = (text, id) => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handleDragStart = (e, index) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    e.target.style.opacity = '0.5';
+  };
+
+  const handleDragEnd = (e) => {
+    e.target.style.opacity = '1';
+    setDraggedIndex(null);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e, index) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === index) return;
+    
+    const newOptimized = [...optimized];
+    const draggedItem = newOptimized[draggedIndex];
+    newOptimized.splice(draggedIndex, 1);
+    newOptimized.splice(index, 0, draggedItem);
+    
+    setDraggedIndex(null);
+    if (onManualUpdate) onManualUpdate(newOptimized);
+  };
+
+  const handleDelete = (index) => {
+    if (!window.confirm("Diesen Stopp wirklich aus der Route entfernen?")) return;
+    const newOptimized = [...optimized];
+    newOptimized.splice(index, 1);
+    if (onManualUpdate) onManualUpdate(newOptimized);
   };
 
   if (!optimized.length) {
@@ -25,9 +61,14 @@ export default function RouteResults({ routeData }) {
 
   return (
     <div className="glass-panel results-container animate-slide-in">
-      <div className="panel-header">
-        <h3>Besuchsreihenfolge</h3>
-        <span className="badge">{optimized.length} Stopps</span>
+      <div className="panel-header" style={{flexWrap: 'wrap', gap: '0.5rem'}}>
+        <div style={{display: 'flex', alignItems: 'center', gap: '1rem'}}>
+          <h3>Besuchsreihenfolge</h3>
+          <span className="badge">{optimized.length} Stopps</span>
+        </div>
+        <button className="btn-secondary text-xs py-1 px-2 flex items-center gap-1" onClick={onOptimize} title="Berechnet die bestmögliche Route für alle aktuellen Stopps">
+          <Play size={14} /> Optimale Route
+        </button>
       </div>
       
       <div className="route-list">
@@ -57,11 +98,29 @@ export default function RouteResults({ routeData }) {
           const durStr = leg ? fmtDur(leg.dur) : '';
 
           const cardContent = (
-            <div className="stop-card">
-              <div className="stop-indicator">{i + 1}</div>
+            <div 
+              className="stop-card draggable-card" 
+              draggable 
+              onDragStart={(e) => handleDragStart(e, i)}
+              onDragEnd={handleDragEnd}
+              onDragOver={handleDragOver}
+              onDrop={(e) => handleDrop(e, i)}
+            >
+              <div className="drag-handle" title="Ziehen um Reihenfolge zu ändern">
+                <GripVertical size={16} color="var(--text-muted)" />
+              </div>
+              <div className="stop-indicator" style={{marginLeft: '0.25rem'}}>{i + 1}</div>
               <div className="stop-content">
-                {stop.debitor && <div className="stop-meta-top"><User size={12}/> Deb. {stop.debitor}</div>}
-                <h4>{stop.name}</h4>
+                <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
+                  <div>
+                    {stop.debitor && <div className="stop-meta-top"><User size={12}/> Deb. {stop.debitor}</div>}
+                    <h4>{stop.name}</h4>
+                  </div>
+                  <button className="icon-btn-small" onClick={() => handleDelete(i)} title="Stopp löschen" style={{background: 'none', border: 'none', cursor: 'pointer', color: 'var(--error)', opacity: 0.7}}>
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+                
                 <div className="stop-address flex items-center gap-2">
                   <span>{stop.address}</span>
                   <button 

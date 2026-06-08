@@ -12,6 +12,7 @@ import { Routes, Route, Link, useNavigate, Navigate, useLocation } from 'react-r
 import { supabase } from './utils/supabase';
 import Auth from './components/Auth';
 import Admin from './components/Admin';
+import Account from './components/Account';
 import './App.css';
 
 function MainApp({ userRole, session, onShowAuth }) {
@@ -36,9 +37,10 @@ function MainApp({ userRole, session, onShowAuth }) {
     end: null,
     legs: [],
     geometry: [],
-    totalDist: 0,
     totalDur: 0,
-    initDist: 0,
+    inputDistHaversine: 0,
+    optimalDistHaversine: 0,
+    currentDistHaversine: 0,
     isORS: false
   });
   const location = useLocation();
@@ -85,28 +87,39 @@ function MainApp({ userRole, session, onShowAuth }) {
       let start = null;
       if (startAddr.trim()) {
         const r = await geocodeAddress(startAddr);
-        if (r) start = { ...r, address: startAddr, isStart: true };
+        if (r) {
+          start = { ...r, address: startAddr, isStart: true };
+        } else {
+          throw new Error("Startadresse konnte nicht gefunden werden. Bitte überprüfen Sie die Eingabe.");
+        }
       }
 
       let end = null;
       if (endAddr.trim()) {
         const r = await geocodeAddress(endAddr);
-        if (r) end = { ...r, address: endAddr, isEnd: true };
+        if (r) {
+          end = { ...r, address: endAddr, isEnd: true };
+        } else {
+          throw new Error("Zieladresse konnte nicht gefunden werden. Bitte überprüfen Sie die Eingabe.");
+        }
       }
 
       // 3. Optimize (Nearest Neighbor + 2-opt) with Time Windows
+      const inputDistHaversine = routeDist(points, start, end);
       const initRoute = nearestNeighbor(points, start, startTime, defaultStayMin, latePenalty, waitPenalty);
       const optimized = twoOpt(initRoute, start, end, startTime, defaultStayMin, latePenalty, waitPenalty);
-      const initDist = routeDist(initRoute, start, end);
+      const optimalDistHaversine = routeDist(optimized, start, end);
       
       let finalData = {
         optimized,
         start,
         end,
-        initDist,
+        inputDistHaversine,
+        optimalDistHaversine,
+        currentDistHaversine: optimalDistHaversine,
         legs: [],
         geometry: [],
-        totalDist: routeDist(optimized, start, end),
+        totalDist: optimalDistHaversine,
         totalDur: 0,
         isORS: false
       };
@@ -154,6 +167,20 @@ function MainApp({ userRole, session, onShowAuth }) {
         }
       }
 
+      let totalTravelMin = 0;
+      let totalStayMin = 0;
+      finalData.optimized.forEach(stop => {
+         const stay = stop.stayMin != null ? stop.stayMin : parseInt(defaultStayMin, 10) || 30;
+         totalStayMin += stay + (stop._waitMin || 0);
+      });
+      if (finalData.legs && finalData.legs.length > 0) {
+         finalData.legs.forEach(leg => totalTravelMin += leg.dur / 60);
+      } else if (!finalData.isORS) {
+         // rough approx for haversine: 50km/h = 1.2 min/km
+         totalTravelMin = finalData.totalDist * 1.2;
+      }
+      finalData.totalDur = totalTravelMin + totalStayMin;
+
       setRouteData(finalData);
       
       if (failed.length) {
@@ -165,6 +192,55 @@ function MainApp({ userRole, session, onShowAuth }) {
     } finally {
       setIsOptimizing(false);
       setGeoProgress({ done: 0, total: 0 });
+    }
+  };
+
+  const handleManualUpdate = async (newOptimized) => {
+    setIsOptimizing(true);
+    try {
+      const currentDistHaversine = routeDist(newOptimized, routeData.start, routeData.end);
+      let finalData = {
+        ...routeData,
+        optimized: newOptimized,
+        currentDistHaversine,
+        legs: [],
+        geometry: [],
+        totalDist: currentDistHaversine,
+        isORS: false
+      };
+
+      if (apiKey.trim()) {
+        try {
+          const waypoints = [...(routeData.start ? [routeData.start] : []), ...newOptimized, ...(routeData.end ? [routeData.end] : [])];
+          if (waypoints.length > 1) {
+            const orsResult = await fetchORSRoute(waypoints, apiKey.trim());
+            finalData = { ...finalData, ...orsResult, isORS: true };
+          }
+        } catch (e) {
+          console.warn("ORS Fehlschlag", e);
+        }
+      }
+
+      finalData.optimized = calculateTimes(finalData.optimized, finalData.legs, startTime, endTime, defaultStayMin, finalData.start, finalData.isORS);
+      
+      let totalTravelMin = 0;
+      let totalStayMin = 0;
+      finalData.optimized.forEach(stop => {
+         const stay = stop.stayMin != null ? stop.stayMin : parseInt(defaultStayMin, 10) || 30;
+         totalStayMin += stay + (stop._waitMin || 0);
+      });
+      if (finalData.legs && finalData.legs.length > 0) {
+         finalData.legs.forEach(leg => totalTravelMin += leg.dur / 60);
+      } else if (!finalData.isORS) {
+         totalTravelMin = finalData.totalDist * 1.2;
+      }
+      finalData.totalDur = totalTravelMin + totalStayMin;
+
+      setRouteData(finalData);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setIsOptimizing(false);
     }
   };
 
@@ -221,7 +297,7 @@ function MainApp({ userRole, session, onShowAuth }) {
       <main className="main-content">
         <header className="topbar">
           <div className="brand flex items-center gap-4">
-            <h1>Händler-Routenoptimierung</h1>
+            <h1>Routenoptimierung</h1>
             <div className="flex gap-2">
               <button className="btn-secondary text-xs p-1" onClick={handleSaveRoute} title="Route speichern">
                 <Save size={16} />
@@ -232,9 +308,14 @@ function MainApp({ userRole, session, onShowAuth }) {
                 </Link>
               )}
               {session ? (
-                <button className="btn-secondary text-xs p-1 text-error" onClick={handleLogout} title="Ausloggen">
-                  <LogOut size={16} />
-                </button>
+                <>
+                  <Link to="/account" className="btn-secondary text-xs px-2 py-1 flex items-center gap-1" title="Account">
+                    Account
+                  </Link>
+                  <button className="btn-secondary text-xs px-2 py-1 text-error flex items-center gap-1" onClick={handleLogout} title="Ausloggen">
+                    Logout <LogOut size={14} />
+                  </button>
+                </>
               ) : (
                 <button className="btn-primary text-xs px-3 py-1 ml-2" onClick={onShowAuth}>
                   Einloggen
@@ -250,7 +331,11 @@ function MainApp({ userRole, session, onShowAuth }) {
 
         <div className="content-grid">
           <MapDisplay routeData={routeData} />
-          <RouteResults routeData={routeData} />
+          <RouteResults 
+            routeData={routeData} 
+            onManualUpdate={handleManualUpdate} 
+            onOptimize={handleOptimize} 
+          />
         </div>
       </main>
 
@@ -334,6 +419,7 @@ export default function App() {
         <Route path="/" element={<MainApp userRole={userRole} session={session} onShowAuth={() => setShowAuthModal(true)} />} />
         <Route path="/login" element={session ? <Navigate to="/" /> : <Auth onClose={() => setShowAuthModal(false)} />} />
         <Route path="/admin" element={requireAdmin(<Admin userRole={userRole} />)} />
+        <Route path="/account" element={requireAuth(<Account session={session} />)} />
       </Routes>
       
       {showAuthModal && !session && (

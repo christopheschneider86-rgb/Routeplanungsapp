@@ -45,8 +45,36 @@
 }
 
 .end-card {
-  border-color: var(--warning);
-  background: rgba(250, 176, 5, 0.05);
+  border-left: 4px solid var(--accent-primary);
+  background: var(--bg-primary);
+}
+
+.draggable-card {
+  cursor: grab;
+  position: relative;
+  transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+}
+
+.draggable-card:active {
+  cursor: grabbing;
+}
+
+.drag-handle {
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: grab;
+  padding: 10px;
+  opacity: 0.5;
+}
+
+.drag-handle:hover {
+  opacity: 1;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
 }
 
 .stop-indicator {
