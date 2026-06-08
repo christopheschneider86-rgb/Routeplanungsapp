@@ -61,6 +61,24 @@ function MainApp({ userRole, session, onShowAuth }) {
     }
   }, [location.state]);
 
+  // Load cloud settings on login
+  useEffect(() => {
+    if (session?.user && supabase) {
+      supabase.from('profiles').select('settings').eq('id', session.user.id).single().then(({data}) => {
+         if (data && data.settings && Object.keys(data.settings).length > 0) {
+            if (data.settings.apiKey) setApiKey(data.settings.apiKey);
+            if (data.settings.startAddr) setStartAddr(data.settings.startAddr);
+            if (data.settings.endAddr) setEndAddr(data.settings.endAddr);
+            if (data.settings.startTime) setStartTime(data.settings.startTime);
+            if (data.settings.endTime) setEndTime(data.settings.endTime);
+            if (data.settings.defaultStayMin) setDefaultStayMin(data.settings.defaultStayMin);
+            if (data.settings.latePenalty) setLatePenalty(data.settings.latePenalty);
+            if (data.settings.waitPenalty) setWaitPenalty(data.settings.waitPenalty);
+         }
+      }).catch(err => console.error("Could not load settings:", err));
+    }
+  }, [session]);
+
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('theme', theme);

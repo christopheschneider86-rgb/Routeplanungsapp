@@ -83,6 +83,27 @@ export default function Account({ session }) {
     window.location.reload();
   };
 
+  const handleSaveToCloud = async () => {
+    if (!supabase || !session?.user) return;
+    try {
+      const settings = {
+        apiKey: localStorage.getItem('apiKey') || '',
+        startAddr: localStorage.getItem('startAddr') || '',
+        endAddr: localStorage.getItem('endAddr') || '',
+        startTime: localStorage.getItem('startTime') || '08:00',
+        endTime: localStorage.getItem('endTime') || '17:00',
+        defaultStayMin: parseInt(localStorage.getItem('defaultStayMin')) || 30,
+        latePenalty: parseInt(localStorage.getItem('latePenalty')) || 50,
+        waitPenalty: parseInt(localStorage.getItem('waitPenalty')) || 1
+      };
+      const { error } = await supabase.from('profiles').update({ settings }).eq('id', session.user.id);
+      if (error) throw error;
+      alert('Einstellungen (API-Key, Zeiten etc.) erfolgreich in der Cloud gespeichert!\nSie werden nun bei jedem Login auf einem neuen Gerät automatisch geladen.');
+    } catch (err) {
+      alert('Fehler beim Speichern in der Cloud: ' + err.message);
+    }
+  };
+
   if (!supabase) return <div className="p-8">Supabase nicht verbunden.</div>;
 
   return (
@@ -158,10 +179,15 @@ export default function Account({ session }) {
 
           <div className="glass-panel p-6">
             <h3 className="text-lg mb-4 font-semibold text-accent flex items-center gap-2"><RefreshCw size={18} /> App-Einstellungen</h3>
-            <p className="text-sm text-muted mb-4">Setzt alle lokalen Einstellungen (Zeiten, Pausen, Adressen) auf Standardwerte zurück. Der API-Key bleibt erhalten.</p>
-            <button onClick={handleResetSettings} className="btn-secondary w-full text-warning border-warning hover:bg-warning hover:text-black transition-colors">
-              Lokale Werte zurücksetzen
-            </button>
+            <p className="text-sm text-muted mb-4">Sichern Sie Ihre aktuellen Eingaben (API-Key, Adressen, Zeiten) dauerhaft in der Cloud oder setzen Sie die Werte zurück.</p>
+            <div className="flex flex-col gap-3">
+              <button onClick={handleSaveToCloud} className="btn-primary w-full shadow-lg">
+                Einstellungen in der Cloud sichern
+              </button>
+              <button onClick={handleResetSettings} className="btn-secondary w-full text-warning border-warning hover:bg-warning hover:text-black transition-colors">
+                Lokale Werte zurücksetzen
+              </button>
+            </div>
           </div>
 
           <div className="glass-panel p-6">

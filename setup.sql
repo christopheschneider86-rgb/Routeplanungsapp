@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   id uuid references auth.users not null primary key,
   email text not null,
   role text not null default 'user' check (role in ('user', 'admin', 'superadmin')),
+  settings jsonb default '{}'::jsonb,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
