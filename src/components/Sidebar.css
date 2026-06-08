@@ -48,13 +48,33 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--text-secondary);
-  margin-bottom: 0.75rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
 }
 
+details.sidebar-section > summary {
+  list-style: none;
+  cursor: pointer;
+  outline: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+details.sidebar-section > summary::-webkit-details-marker {
+  display: none;
+}
+
+details.sidebar-section > summary .chevron-icon {
+  transition: transform 0.2s;
+}
+
+details.sidebar-section[open] > summary .chevron-icon {
+  transform: rotate(180deg);
+}
+
+.m-0 { margin: 0; }
 .p-4 { padding: 1rem; }
+.px-4 { padding-left: 1rem; padding-right: 1rem; }
+.pb-4 { padding-bottom: 1rem; }
 .mb-4 { margin-bottom: 1rem; }
 .mb-2 { margin-bottom: 0.5rem; }
 .mt-3 { margin-top: 0.75rem; }

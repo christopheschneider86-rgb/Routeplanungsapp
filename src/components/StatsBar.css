@@ -1,8 +1,44 @@
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 1rem;
+  width: 100%;
 }
+
+details.stats-details {
+  width: 100%;
+  margin-bottom: 1rem;
+}
+
+details.stats-details > summary {
+  list-style: none;
+  cursor: pointer;
+  outline: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 0.75rem;
+}
+
+details.stats-details > summary::-webkit-details-marker {
+  display: none;
+}
+
+details.stats-details > summary .chevron-icon {
+  transition: transform 0.2s;
+}
+
+details.stats-details[open] > summary .chevron-icon {
+  transform: rotate(180deg);
+}
+
+
 
 .stat-card {
   padding: 1.25rem;

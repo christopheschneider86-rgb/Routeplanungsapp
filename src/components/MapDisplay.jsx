@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
-import { Maximize, Minimize, Map as MapIcon, Crosshair } from 'lucide-react';
+import { Maximize, Minimize, Map as MapIcon, Crosshair, RefreshCw } from 'lucide-react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import './MapDisplay.css';
@@ -62,6 +62,13 @@ export default function MapDisplay({ routeData }) {
     }
   };
 
+  const handleReloadMap = () => {
+    if (mapRef.current) {
+      mapRef.current.invalidateSize();
+      handleZoomToRoute();
+    }
+  };
+
   const handleMyLocation = () => {
     if (!navigator.geolocation) {
       alert('Geolocation wird nicht unterstützt.');
@@ -114,6 +121,9 @@ export default function MapDisplay({ routeData }) {
       </div>
       <div className="map-wrapper">
         <div className="map-controls-overlay">
+          <button className="map-overlay-btn" onClick={handleReloadMap} title="Karte neu laden (behebt Anzeigefehler)">
+            <RefreshCw size={20} />
+          </button>
           <button className="map-overlay-btn" onClick={handleZoomToRoute} title="Route zentrieren">
             <MapIcon size={20} />
           </button>
