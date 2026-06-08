@@ -69,6 +69,20 @@ export default function Account({ session }) {
     }
   };
 
+  const handleResetSettings = () => {
+    if (!window.confirm('Möchten Sie alle lokalen Einstellungen (Start, Ziel, Arbeitszeiten, Pausen) wirklich auf die Standardwerte zurücksetzen?\n\nIhr API-Key bleibt erhalten.')) return;
+    
+    localStorage.removeItem('startAddr');
+    localStorage.removeItem('endAddr');
+    localStorage.removeItem('startTime');
+    localStorage.removeItem('endTime');
+    localStorage.removeItem('defaultStayMin');
+    localStorage.removeItem('latePenalty');
+    localStorage.removeItem('waitPenalty');
+    
+    window.location.reload();
+  };
+
   if (!supabase) return <div className="p-8">Supabase nicht verbunden.</div>;
 
   return (
@@ -140,6 +154,14 @@ export default function Account({ session }) {
               <button type="submit" className="btn-secondary w-full">Passwort ändern</button>
               {passwordMsg && <p className="text-xs text-accent mt-1">{passwordMsg}</p>}
             </form>
+          </div>
+
+          <div className="glass-panel p-6">
+            <h3 className="text-lg mb-4 font-semibold text-accent flex items-center gap-2"><RefreshCw size={18} /> App-Einstellungen</h3>
+            <p className="text-sm text-muted mb-4">Setzt alle lokalen Einstellungen (Zeiten, Pausen, Adressen) auf Standardwerte zurück. Der API-Key bleibt erhalten.</p>
+            <button onClick={handleResetSettings} className="btn-secondary w-full text-warning border-warning hover:bg-warning hover:text-black transition-colors">
+              Lokale Werte zurücksetzen
+            </button>
           </div>
 
           <div className="glass-panel p-6">

@@ -144,13 +144,24 @@ export default function Admin({ userRole }) {
           </>
         ) : (
           <>
-            <h3 className="text-xl mb-4">Nutzer-Verwaltung (Superadmin)</h3>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl">Nutzer-Verwaltung (Superadmin)</h3>
+              <div className="flex gap-2">
+                <button 
+                  className="btn-primary text-xs"
+                  onClick={() => alert('Aus Sicherheitsgründen (Spamschutz) können neue Nutzer nur im "Supabase Dashboard" unter "Authentication -> Users -> Add User" angelegt werden. Alternativ kann sich der Nutzer selbst über die App registrieren und Sie weisen ihm danach hier die Admin-Rechte zu.')}
+                >
+                  + Nutzer anlegen
+                </button>
+              </div>
+            </div>
             <table className="w-full text-left">
               <thead>
                 <tr className="border-b border-gray-700 text-sm text-muted">
                   <th className="py-2 font-normal">E-Mail</th>
                   <th className="py-2 font-normal">Registriert am</th>
                   <th className="py-2 font-normal">Rolle</th>
+                  <th className="py-2 font-normal text-right">Aktionen</th>
                 </tr>
               </thead>
               <tbody>
@@ -169,6 +180,15 @@ export default function Admin({ userRole }) {
                         <option value="admin">Admin</option>
                         <option value="superadmin">Superadmin</option>
                       </select>
+                    </td>
+                    <td className="py-3 text-right">
+                      <button 
+                        onClick={() => alert(`Um den Nutzer ${u.email} komplett zu sperren, gehen Sie bitte in Ihr Supabase Dashboard auf "Authentication -> Users", klicken Sie auf die drei Punkte neben dem Nutzer und wählen Sie "Suspend User".`)}
+                        className="text-xs text-warning hover:underline"
+                        title="Nutzer sperren (Info)"
+                      >
+                        Sperren
+                      </button>
                     </td>
                   </tr>
                 ))}

