@@ -199,6 +199,13 @@ export default function Account({ session }) {
               <RefreshCw size={16} /> App weiterempfehlen
             </button>
           </div>
+
+          <div className="glass-panel p-6">
+            <h3 className="text-lg mb-4 font-semibold text-accent flex items-center gap-2">Rechtliches</h3>
+            <Link to="/terms" className="btn-secondary w-full text-center inline-block">
+              Nutzungsbedingungen (AGB)
+            </Link>
+          </div>
         </div>
       </div>
     </div>

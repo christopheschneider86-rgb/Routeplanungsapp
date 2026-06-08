@@ -143,7 +143,7 @@ export default function Auth({ onClose }) {
                 style={{ width: 'auto' }}
               />
               <label htmlFor="terms" className="text-xs text-[var(--text-secondary)] leading-relaxed cursor-pointer">
-                Ich akzeptiere die Nutzungsbedingungen. Mir ist bewusst, dass meine Routendaten in der Cloud verarbeitet und gespeichert werden.
+                Ich akzeptiere die <a href="/terms" target="_blank" className="text-[var(--accent-primary)] hover:underline">Nutzungsbedingungen (AGB)</a>. Mir ist bewusst, dass meine Routendaten in der Cloud verarbeitet und gespeichert werden.
               </label>
             </div>
           )}

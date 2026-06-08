@@ -13,6 +13,7 @@ import { supabase } from './utils/supabase';
 import Auth from './components/Auth';
 import Admin from './components/Admin';
 import Account from './components/Account';
+import Terms from './components/Terms';
 import './App.css';
 
 function MainApp({ userRole, session, onShowAuth }) {
@@ -461,6 +462,7 @@ export default function App() {
         <Route path="/login" element={session ? <Navigate to="/" /> : <Auth onClose={() => setShowAuthModal(false)} />} />
         <Route path="/admin" element={requireAdmin(<Admin userRole={userRole} />)} />
         <Route path="/account" element={requireAuth(<Account session={session} />)} />
+        <Route path="/terms" element={<Terms />} />
       </Routes>
       
       {showAuthModal && !session && (
