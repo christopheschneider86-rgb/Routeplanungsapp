@@ -34,7 +34,7 @@ export default function Sidebar({
       </div>
 
       <div className="sidebar-scrollable">
-        <details className="glass-panel mb-4 sidebar-section" open>
+        <details className="glass-panel mb-4 sidebar-section" name="sidebar-accordion">
           <summary className="section-title p-4 m-0">
             <div className="flex items-center gap-2"><Key size={16} /> OpenRouteService API</div>
             <ChevronDown size={16} className="chevron-icon" />
@@ -51,7 +51,7 @@ export default function Sidebar({
           </div>
         </details>
 
-        <details className="glass-panel mb-4 sidebar-section" open>
+        <details className="glass-panel mb-4 sidebar-section" name="sidebar-accordion">
           <summary className="section-title p-4 m-0">
             <div className="flex items-center gap-2"><MapPin size={16} /> Start & Ende</div>
             <ChevronDown size={16} className="chevron-icon" />
@@ -87,7 +87,7 @@ export default function Sidebar({
           </div>
         </details>
 
-        <details className="glass-panel mb-4 sidebar-section" open>
+        <details className="glass-panel mb-4 sidebar-section" name="sidebar-accordion">
           <summary className="section-title p-4 m-0">
             <div className="flex items-center gap-2"><Clock size={16} /> Zeitplanung</div>
             <ChevronDown size={16} className="chevron-icon" />
@@ -122,7 +122,7 @@ export default function Sidebar({
           </div>
         </details>
 
-        <details className="glass-panel mb-4 sidebar-section">
+        <details className="glass-panel mb-4 sidebar-section" name="sidebar-accordion">
           <summary className="section-title p-4 m-0">
             <div className="flex items-center gap-2"><Settings size={16} /> Algorithmus-Strafen</div>
             <ChevronDown size={16} className="chevron-icon" />
@@ -152,7 +152,7 @@ export default function Sidebar({
           </div>
         </details>
 
-        <details className="glass-panel mb-4 sidebar-section" open>
+        <details className="glass-panel mb-4 sidebar-section" name="sidebar-accordion">
           <summary className="section-title p-4 m-0">
             <div className="flex items-center gap-2"><Upload size={16} /> Händlerdaten (CSV)</div>
             <ChevronDown size={16} className="chevron-icon" />
